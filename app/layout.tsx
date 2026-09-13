@@ -14,9 +14,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareFall",
+  title: "HeldCare",
   description: "Senior-living emergency-response system",
 };
+
+/** Applies the saved theme before first paint so the page never flashes. */
+const THEME_SCRIPT = `
+try {
+  var saved = localStorage.getItem("carefall-theme");
+  if (saved === "dark") document.documentElement.classList.add("dark");
+} catch (e) {}
+`;
 
 export default function RootLayout({
   children,
@@ -26,9 +34,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        {children}
+      </body>
     </html>
   );
 }

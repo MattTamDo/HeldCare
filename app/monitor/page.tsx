@@ -1,4 +1,8 @@
-import { CameraWall } from "@/components/monitor/CameraWall";
+import { MonitorShell } from "@/components/monitor/MonitorShell";
+import { buildIncidentBoard } from "@/lib/incidents/board";
+import { parseMonitorTab } from "@/lib/monitor/tabs";
+
+export const dynamic = "force-dynamic";
 
 export default async function MonitorPage({
   searchParams,
@@ -6,9 +10,12 @@ export default async function MonitorPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
+
   return (
-    <div className="flex flex-1 flex-col bg-slate-950 text-slate-100">
-      <CameraWall demoMode={query.demo === "true"} />
-    </div>
+    <MonitorShell
+      tab={parseMonitorTab(query.tab)}
+      initialBoard={buildIncidentBoard()}
+      demoMode={query.demo === "true"}
+    />
   );
 }

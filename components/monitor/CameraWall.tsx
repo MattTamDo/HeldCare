@@ -1,18 +1,38 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { DebugHud } from "@/components/camera/DebugHud";
+import { AiAnalysisCard, VitalSignsCard } from "@/components/monitor/AnalysisPanels";
+import { AlertRail } from "@/components/monitor/AlertRail";
 import { useFallFeed } from "@/hooks/useFallFeed";
-import { CAMERA_WALL } from "@/lib/fall/config";
+import { useSourceSnapshot } from "@/hooks/useFallSource";
+import type { useIncidentBoard } from "@/hooks/useIncidentBoard";
+import { CAMERA_WALL, getMonitoredRoom } from "@/lib/fall/config";
 
 import { CameraTile, type TileHandle } from "./CameraTile";
-import { HandoffPanel } from "./HandoffPanel";
 import { useManualFallKey } from "./useManualFallKey";
 
 const LIVE_SOURCE_ID =
   CAMERA_WALL.find((source) => source.kind === "live")?.id ?? CAMERA_WALL[0].id;
 
-export function CameraWall({ demoMode = false }: { demoMode?: boolean }) {
+/** Spotlight cell: three of the four columns and all three rows. */
+const SPOTLIGHT_CELL =
+  "col-span-2 sm:col-span-2 lg:col-span-3 lg:row-span-3 lg:col-start-1 lg:row-start-1";
+
+export function CameraWall({
+  board,
+  active = true,
+  demoMode = false,
+  query,
+  onOpenResponder,
+}: {
+  board: ReturnType<typeof useIncidentBoard>;
+  active?: boolean;
+  demoMode?: boolean;
+  query: string;
+  onOpenResponder: () => void;
+}) {
   const { reports, clear } = useFallFeed();
   const [selectedId, setSelectedId] = useState(LIVE_SOURCE_ID);
 
@@ -31,64 +51,85 @@ export function CameraWall({ demoMode = false }: { demoMode?: boolean }) {
     for (const handle of handles.current.values()) handle.resetDetector();
   }, []);
 
-  useManualFallKey(triggerSelected);
+  useManualFallKey(triggerSelected, active);
 
-  const selectedRoomId =
-    CAMERA_WALL.find((source) => source.id === selectedId)?.roomId ?? null;
+  const selectedSource =
+    CAMERA_WALL.find((source) => source.id === selectedId) ?? CAMERA_WALL[0];
+  const selectedRoom = getMonitoredRoom(selectedSource.roomId);
+  const selectedState = useSourceSnapshot(selectedId);
+
+  // Searching highlights matching windows rather than hiding them, so a camera
+  // is never silently dropped from the wall.
+  const needle = query.trim().toLowerCase();
+  const matches = useMemo(() => {
+    if (!needle) return null;
+    return new Set(
+      CAMERA_WALL.filter((source) => {
+        const room = getMonitoredRoom(source.roomId);
+        return (
+          room.roomId.toLowerCase().includes(needle) ||
+          room.residentName.toLowerCase().includes(needle)
+        );
+      }).map((source) => source.id),
+    );
+  }, [needle]);
 
   return (
-    <main className="mx-auto w-full max-w-[100rem] px-5 py-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <p className="text-xs font-semibold tracking-[0.2em] text-sky-400 uppercase">
-            CareFall · Camera Wall
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">
-            Fall detection monitoring
-          </h1>
-          <p className="text-sm text-slate-400">
-            Oakwood Senior Living · Floor 2 · {CAMERA_WALL.length} windows
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {demoMode && (
-            <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-xs font-semibold tracking-wide text-sky-300 uppercase">
-              Demo mode
-            </span>
-          )}
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-[100rem] px-5 py-5">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:grid-rows-3">
+            {CAMERA_WALL.map((source) => {
+              const isSpotlight = source.id === selectedId;
+              const dimmed = matches !== null && !matches.has(source.id);
+              return (
+                <CameraTile
+                  key={source.id}
+                  source={source}
+                  spotlight={isSpotlight}
+                  selected={isSpotlight}
+                  onSelect={() => setSelectedId(source.id)}
+                  register={register}
+                  onCallForHelp={onOpenResponder}
+                  className={`${isSpotlight ? SPOTLIGHT_CELL : ""} ${
+                    dimmed ? "opacity-40" : ""
+                  }`}
+                />
+              );
+            })}
+          </div>
 
-      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {CAMERA_WALL.map((source) => (
-            <CameraTile
-              key={source.id}
-              source={source}
-              showDiagnostics={false}
-              selected={selectedId === source.id}
-              onSelect={() => setSelectedId(source.id)}
-              register={register}
-            />
-          ))}
+          <div className="grid gap-4 md:grid-cols-2">
+            <AiAnalysisCard state={selectedState} />
+            <VitalSignsCard state={selectedState} />
+          </div>
+
+          {demoMode && <DebugHud state={selectedState} />}
+
+          <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+            Fall scores are a demonstration heuristic, not a medically validated
+            measure. Click any window to make it the main view — the{" "}
+            <span className="font-mono">F</span> key reports a fall for whichever
+            room is showing.
+          </p>
         </div>
 
-        <div className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
-          <HandoffPanel
-            reports={reports}
-            selectedRoomId={selectedRoomId}
-            onTrigger={triggerSelected}
-            onResetAll={resetAll}
-            onClearFeed={clear}
-          />
-        </div>
+        <AlertRail
+          board={board.board}
+          activeIncident={board.activeIncident}
+          activeRoom={board.activeRoom}
+          updatedAt={board.board.generatedAt}
+          onRespond={board.respond}
+          onResolve={board.resolve}
+          selectedRoom={selectedRoom}
+          reports={reports}
+          cameraCount={CAMERA_WALL.length}
+          onTrigger={triggerSelected}
+          onResetAll={resetAll}
+          onClearFeed={clear}
+          showDemoControls={demoMode}
+        />
       </div>
-
-      <p className="mt-6 text-[11px] leading-relaxed text-slate-500">
-        Fall scores are a demonstration heuristic, not a medically validated
-        measure. Click a window to choose which room the manual{" "}
-        <span className="font-mono">F</span> trigger reports.
-      </p>
-    </main>
+    </div>
   );
 }

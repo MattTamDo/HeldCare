@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   FALL_CONFIG,
@@ -75,6 +81,31 @@ const INITIAL_STATE: FallSourceState = {
 
 /** Windows currently running, so they can share the inference budget. */
 let activeSourceCount = 0;
+
+// ---------------------------------------------------------------------------
+// Snapshot store
+//
+// A window owns its detector state, but the spotlight layout needs to read the
+// selected window's state from outside it. Publishing through a store keeps
+// that read-only and avoids a child-to-parent setState cascade.
+// ---------------------------------------------------------------------------
+
+const snapshots = new Map<string, FallSourceState>();
+const snapshotListeners = new Set<() => void>();
+
+function subscribeToSnapshots(onChange: () => void) {
+  snapshotListeners.add(onChange);
+  return () => snapshotListeners.delete(onChange);
+}
+
+/** Latest detector state for one window, or an idle state if it never ran. */
+export function useSourceSnapshot(sourceId: string): FallSourceState {
+  return useSyncExternalStore(
+    subscribeToSnapshots,
+    () => snapshots.get(sourceId) ?? INITIAL_STATE,
+    () => INITIAL_STATE,
+  );
+}
 
 function describeCameraError(error: unknown): string {
   if (!(error instanceof Error)) return "Could not start the camera.";
@@ -398,6 +429,11 @@ export function useFallSource(source: CameraSourceConfig) {
     },
     [stop],
   );
+
+  useEffect(() => {
+    snapshots.set(source.id, state);
+    for (const listener of snapshotListeners) listener();
+  }, [source.id, state]);
 
   // -------------------------------------------------------------------------
   // Clip handling (video windows)
