@@ -53,6 +53,10 @@ export function respondToIncident(incidentId: string, responderId: string): Inci
   return updated;
 }
 
+export function getIncident(incidentId: string): Incident | undefined {
+  return incidentsById.get(incidentId);
+}
+
 export function resolveIncident(incidentId: string): Incident {
   const incident = incidentsById.get(incidentId);
   if (!incident) throw new IncidentServiceError("Incident not found", 404);

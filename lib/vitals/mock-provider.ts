@@ -1,0 +1,105 @@
+import type { Vitals } from "@/lib/assessment/types";
+import type {
+  VitalsMode,
+  VitalsProvider,
+  VitalsSnapshot,
+  VitalsStage,
+} from "./types";
+
+/** Stage timings, in ms, for the simulated measurement run. */
+const TIMELINE: Array<{ stage: VitalsStage; after: number }> = [
+  { stage: "initializing", after: 0 },
+  { stage: "searching", after: 900 },
+  { stage: "acquired", after: 2100 },
+  { stage: "measuring", after: 2900 },
+  { stage: "available", after: 15_000 },
+];
+
+function jitter(center: number, spread: number): number {
+  return Math.round(center + (Math.random() * 2 - 1) * spread);
+}
+
+function mockPressureWaveform(): number[] {
+  return Array.from({ length: 48 }, (_, index) => {
+    const wave = Math.sin(index / 4.4) * 0.55 + Math.sin(index / 1.9) * 0.16;
+    return Number((wave + (Math.random() * 0.12 - 0.06)).toFixed(3));
+  });
+}
+
+/**
+ * Simulates a contactless measurement run. This is the default provider and the
+ * one used for the demo — it produces plausible estimates without any camera.
+ */
+export class MockVitalsProvider implements VitalsProvider {
+  readonly mode: VitalsMode = "mock";
+
+  private listeners = new Set<(snapshot: VitalsSnapshot) => void>();
+  private timers: ReturnType<typeof setTimeout>[] = [];
+  private snapshot: VitalsSnapshot = { stage: "idle", vitals: {} };
+
+  subscribe(listener: (snapshot: VitalsSnapshot) => void): () => void {
+    this.listeners.add(listener);
+    listener(this.snapshot);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(next: VitalsSnapshot) {
+    this.snapshot = next;
+    this.listeners.forEach((listener) => listener(next));
+  }
+
+  async start(): Promise<void> {
+    this.clearTimers();
+    this.emit({ stage: "idle", vitals: {} });
+
+    for (const { stage, after } of TIMELINE) {
+      this.timers.push(
+        setTimeout(() => {
+          const vitals: Vitals =
+            stage === "available"
+              ? {
+                  pulse: jitter(112, 3),
+                  respiration: jitter(16, 2),
+                  signalQuality: "GOOD",
+                  pressureWaveform: mockPressureWaveform(),
+                  hrv: {
+                    rmssd: jitter(42, 5),
+                    meanNn: jitter(770, 25),
+                    sdnn: jitter(51, 6),
+                    baevsky: jitter(78, 8),
+                    stable: true,
+                    confidence: 0.91,
+                  },
+                  face: {
+                    blinking: false,
+                    talking: false,
+                    expression: "neutral",
+                    landmarksCount: 468,
+                  },
+                  packets: 12,
+                  scanSeconds: 15,
+                }
+              : this.snapshot.vitals;
+          this.emit({ stage, vitals });
+        }, after),
+      );
+    }
+  }
+
+  async stop(): Promise<void> {
+    this.clearTimers();
+    // Keep a completed measurement visible; only clear a run still in flight.
+    if (this.snapshot.stage !== "available") {
+      this.emit({ stage: "idle", vitals: {} });
+    }
+  }
+
+  async getLatest(): Promise<Vitals> {
+    return this.snapshot.vitals;
+  }
+
+  private clearTimers() {
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
+  }
+}

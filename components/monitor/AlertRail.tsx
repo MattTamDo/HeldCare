@@ -5,10 +5,9 @@ import {
   BellIcon,
   CheckIcon,
   CheckShieldIcon,
-  MicIcon,
   PhoneIcon,
-  UsersIcon,
 } from "@/components/ui/icons";
+import { responderPath } from "@/lib/assessment/incident";
 import type { IncidentBoardData } from "@/lib/incidents/board";
 import { FALL_CONFIG, getMonitoredRoom, type MonitoredRoom } from "@/lib/fall/config";
 import type { ReportedFall } from "@/lib/fall/reportFall";
@@ -23,27 +22,6 @@ function timeOf(ms: number) {
 
 const ACTION =
   "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition";
-
-/** Two-way audio and family contact have no backend, so they say so. */
-function UnavailableAction({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      disabled
-      title="Not available in this demo"
-      className={`${ACTION} cursor-not-allowed bg-white text-slate-400 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-500 dark:ring-slate-700`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 function ActiveAlertCard({
   incident,
@@ -108,14 +86,28 @@ function ActiveAlertCard({
 
       <div className="grid grid-cols-2 gap-2 p-4">
         {claimed ? (
-          <button
-            type="button"
-            onClick={onResolve}
-            className={`${ACTION} col-span-2 bg-emerald-600 text-white hover:bg-emerald-500`}
-          >
-            <CheckIcon className="size-4" />
-            Mark as resolved
-          </button>
+          <>
+            <a
+              href={responderPath(incident.id, "assessment", incident.roomId)}
+              className={`${ACTION} col-span-2 bg-sky-600 text-white hover:bg-sky-500`}
+            >
+              Open post-fall assessment
+            </a>
+            <a
+              href={responderPath(incident.id, "copilot", incident.roomId)}
+              className={`${ACTION} col-span-2 bg-indigo-600 text-white hover:bg-indigo-500`}
+            >
+              Open phone copilot
+            </a>
+            <button
+              type="button"
+              onClick={onResolve}
+              className={`${ACTION} col-span-2 bg-emerald-600 text-white hover:bg-emerald-500`}
+            >
+              <CheckIcon className="size-4" />
+              Mark as resolved
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -127,9 +119,6 @@ function ActiveAlertCard({
             Dispatch {responders[0]?.name ?? "responder"}
           </button>
         )}
-
-        <UnavailableAction icon={<MicIcon className="size-4" />} label="Talk to resident" />
-        <UnavailableAction icon={<UsersIcon className="size-4" />} label="Contact family" />
       </div>
     </section>
   );

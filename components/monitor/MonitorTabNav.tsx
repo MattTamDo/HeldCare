@@ -36,7 +36,7 @@ export function MonitorTabNav({
               href={hrefFor(id)}
               scroll={false}
               aria-current={active ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`flex min-h-11 shrink-0 touch-manipulation items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
                   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
                   : "text-slate-500 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
