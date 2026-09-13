@@ -4,67 +4,97 @@ Senior-living emergency response for a three-person hackathon. A confirmed fall 
 
 `/` redirects to **`/monitor`**. Light theme by default; the header toggle persists in `localStorage`.
 
-## Full workflow
+## Full workflow (multi-agent)
+
+HeldCare is a **multi-agent pipeline**. Each agent has one job, its own model or runtime, and a typed handoff. No agent diagnoses. Shared state (`Incident` + `AssessmentState`) is the bus.
 
 ```text
-Room camera / demo clip          Facility + Responder tabs         Phone at the bedside
-MediaPipe Pose + fall agent      Incident agent (SSE)              Copilot + Presage + form
-        │                                 │                                  │
-        │  POST /api/incidents/fall       │                                  │
-        ├────────────────────────────────►│  incident_created                │
-        │                                 ├── SSE ──► Facility (red room)    │
-        │                                 ├── SSE ──► Responder (alert)      │
-        │                                 │                                  │
-        │                                 │◄── accept ── Responder tab ──────┤
-        │                                 │                                  │
-        │                                 │   /responder/incident/:id/copilot
-        │                                 │                                  │
-        │                                 │   Gemini Live (audio + video)    │
-        │                                 │   + realtime Presage estimates   │
-        │                                 │   + structured findings          │
-        │                                 │                                  │
-        │                                 │◄── AssessmentResult ─────────────┤
-        │                                 └── resolve / reset demo           │
+┌─ 1. Fall Detection Agent ──────────────────────────────────────────┐
+│  MediaPipe Pose (201–203 clips, 204 live) → features → state machine│
+│  Output: one FallEvent                                              │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │ POST /api/incidents/fall
+┌─ 2. Incident Orchestrator ───▼─────────────────────────────────────┐
+│  Create / claim / resolve. Fan-out over SSE to every dashboard tab  │
+│  Output: Incident { id, roomId, resident, responder }               │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │ accept → /copilot?room=…
+┌─ 3. Bedside multi-agent loop (parallel) ───────────────────────────┐
+│                                                                    │
+│   Scene Copilot Agent          Presage Vitals Agent                │
+│   Gemini Live audio+video      VitalsProvider.subscribe()          │
+│   sees the room, hears CNA     initializing → … → available        │
+│            │                              │                        │
+│            │   latest pulse / breath      │                        │
+│            ◄──────────────────────────────┘                        │
+│            │                                                       │
+│            │ function calls (same tool surface as interpret)       │
+│            ├─► Context Agent      getIncidentContext               │
+│            ├─► Protocol Agent     getProtocol                      │
+│            ├─► Chart Agent        recordObservation                │
+│            ├─► Problem Agent      recordProblem                    │
+│            ├─► Visual Agent       showVisualGuide → 3D mannequin   │
+│            └─► Closer Agent       completeAssessment               │
+│                                                                    │
+│   Form Interpreter Agent (mic on /assessment, not Live)            │
+│   /api/assessment/interpret — up to 3 tool-calling turns           │
+│   fallback: on-device parser if Gemini is down                     │
+│                                                                    │
+│   Shared AssessmentState: findings + Presage estimates             │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │ Stop / Complete
+┌─ 4. EMS Writer Agent ────────▼─────────────────────────────────────┐
+│  /api/assessment/ems-report                                        │
+│  Input: problems + Presage numbers + transcripts                   │
+│  Gemini rewrites a situation script; numbers stay verbatim         │
+│  Output: AssessmentResult → POST /api/incidents/:id/assessment     │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Detect.** Rooms **201–203** play uploaded demo clips; room **204** is the live camera. Every window runs the same pose detector. A staged fall, a detected collapse, or **`F`** on the selected window all call `reportFall()`.
-2. **Dispatch.** `POST /api/incidents/fall` opens one active incident per room. SSE (`/api/realtime/stream`) updates Live cameras, Facility, and Responder at once.
-3. **Accept.** On the Responder tab, tap a name. The phone opens Live copilot for **that room**, not a hardcoded 204.
-4. **Copilot.** Safari on the phone (HTTPS) starts Gemini Live: one short spoken sentence at a time, grounded in the camera scene. Findings are saved with `recordObservation` / `recordProblem`.
-5. **Vitals.** The Presage adapter streams measurement stages in real time (pulse, breathing, signal). The copilot chips update as numbers arrive. This build uses the simulated provider so the demo never depends on hardware.
-6. **Assess / handoff.** Post-fall form, protocol card, 3D guide, then Complete. Stop on the copilot writes an EMS situation script (Presage numbers kept verbatim).
-7. **Reset.** `/monitor?demo=true` → Clear all alerts. Ready for the next judge run.
+How the agents actually call each other:
+
+1. **Fall Detection Agent** (`lib/fall/`) watches every camera. A real collapse, a staged clip, or **`F`** emits exactly one `FallEvent`.
+2. **Incident Orchestrator** (`lib/incidents/` + `/api/realtime/stream`) opens that room’s incident and pushes `incident_created` / `incident_responding` to Live cameras, Facility, and Responder.
+3. Accepting a responder starts the **bedside loop** for **that room** (`/responder/incident/:id/copilot?room=…`).
+4. **Scene Copilot Agent** (Gemini Live, `LIVE_SYSTEM_INSTRUCTION`) and **Presage Vitals Agent** run at the same time. Presage snapshots are written into `state.vitals`; the next Live turn is briefed with those estimates (`lib/gemini/live-config.ts`).
+5. The copilot does **not** do the paperwork itself. It dispatches **specialist tool-agents** (`lib/gemini/tools.ts`): context, protocol, chart, problems, 3D guide, complete. The same specialists are used by the **Form Interpreter Agent** (`/api/assessment/interpret`, max 3 turns).
+6. **EMS Writer Agent** is a separate Gemini call. It only rewrites language. It is forbidden to invent findings or change Presage numbers.
+7. Demo reset: `/monitor?demo=true` → Clear all alerts.
 
 ### Judge path (two minutes)
 
 ```text
 Laptop:  /monitor?demo=true
          Upload clips on 201–203 or stage a fall on 204 / press F
+         Fall Agent → Orchestrator → red room on every tab
 Phone:   same Next process via Cloudflare HTTPS
          Responder tab → accept → Allow Camera + Microphone → Start
-         Speak what you see → Stop → EMS report
-Laptop:  Facility + Responder tabs already show the same incident
+         Copilot Agent + Presage Agent run together
+         Speak what you see → tools save problems → Stop
+         EMS Writer Agent builds the handoff
+Laptop:  Facility + Responder already show the same incident
 ```
 
-## Multi-agent design
+### Agent map
 
-Not a generic agent swarm. Four narrow roles, each with one job and a typed contract.
-
-| Agent | Runs | Does | Does not |
-|-------|------|------|----------|
-| **Fall agent** | Browser, `lib/fall/` | Pose → temporal features → one `FallEvent` | Dashboard, Gemini, vitals |
-| **Incident agent** | Server, `lib/incidents/` + SSE | Create, claim, resolve; fan out to every tab | Pose math, medical advice |
-| **Scene copilot** | Gemini Live + `/api/assessment/live-token` | See the phone camera, hear the responder, save findings, coach the next action | Recite a generic protocol script, name a diagnosis |
-| **Assessment interpreter** | `/api/assessment/interpret` + local parser | Speech → structured form fields + protocol step | Invent procedures |
-| **Presage vitals** | `VitalsProvider.subscribe()` | Stream stages and estimates to the UI and copilot | Diagnose from a pulse number |
-| **EMS writer** | `/api/assessment/ems-report` | Situation script for incoming medics; keeps Presage numbers | Add findings that were not recorded |
+| Agent | Runtime | Handoff in | Handoff out |
+|-------|---------|------------|-------------|
+| Fall Detection | Browser pose + `lib/fall/` | Camera / clip frames | `FallEvent` |
+| Incident Orchestrator | Server + SSE | `FallEvent` | `Incident`, tab updates |
+| Scene Copilot | Gemini Live + `/api/assessment/live-token` | Incident, camera, mic, latest vitals | Spoken coach + tool calls |
+| Form Interpreter | Gemini `generateContent` loop | Transcript + state | `AssessmentAction[]` |
+| Context / Protocol / Chart / Problem / Visual / Closer | Function declarations | Copilot or interpreter tool call | `AssessmentState` fields, 3D, complete |
+| Presage Vitals | `VitalsProvider.subscribe()` | Start measurement | Staged pulse / breath / signal |
+| EMS Writer | Gemini rewrite + template fallback | State + transcripts + Presage | EMS script + `AssessmentResult` |
+| Offline parser | `lib/gemini/local-parser.ts` | Transcript when Gemini is down | Same actions, `source: "local"` |
 
 Shared contracts (do not change without the team):
 
 - `FallEvent` — `lib/types/incident.ts`
 - `Incident` — same file / in-memory store
-- `AssessmentResult` — `lib/assessment/types.ts`
+- `AssessmentResult` / `AssessmentState` — `lib/assessment/types.ts`
 - `VitalsProvider` — `lib/vitals/types.ts` (`start` / `stop` / `getLatest` / `subscribe`)
+- Tool surface — `lib/gemini/tools.ts` (Live and interpret share it)
 
 ## Realtime Presage
 
