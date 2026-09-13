@@ -6,6 +6,12 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-surface: #0b0e13;
+  --color-panel: #151a22;
+  --color-panel-2: #1d242e;
+  --color-edge: #2b3644;
+  --color-accent: #38bdf8;
+  --color-alert: #f43f5e;
 }
 
 body {

@@ -108,14 +108,22 @@ function ActiveAlertCard({
 
       <div className="grid grid-cols-2 gap-2 p-4">
         {claimed ? (
-          <button
-            type="button"
-            onClick={onResolve}
-            className={`${ACTION} col-span-2 bg-emerald-600 text-white hover:bg-emerald-500`}
-          >
-            <CheckIcon className="size-4" />
-            Mark as resolved
-          </button>
+          <>
+            <a
+              href={`/responder/incident/${incident.id}/assessment`}
+              className={`${ACTION} col-span-2 bg-sky-600 text-white hover:bg-sky-500`}
+            >
+              Open post-fall assessment
+            </a>
+            <button
+              type="button"
+              onClick={onResolve}
+              className={`${ACTION} col-span-2 bg-emerald-600 text-white hover:bg-emerald-500`}
+            >
+              <CheckIcon className="size-4" />
+              Mark as resolved
+            </button>
+          </>
         ) : (
           <button
             type="button"

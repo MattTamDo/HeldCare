@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HeldCare",
   description: "Senior-living emergency-response system",
+};
+
+// The post-fall assessment screen is used one-handed on a phone.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 /** Applies the saved theme before first paint so the page never flashes. */

@@ -8,11 +8,23 @@ Senior-living emergency-response system — hackathon project (3-person team).
 |--------|-------|-------|--------|
 | Fall Detection | Person 1 | `/monitor` (Cameras tab) | Integrated |
 | Incident Response | Person 2 | `/monitor?tab=facility`, `/monitor?tab=responder` | Integrated |
-| Post-Fall Assessment | Person 3 | `/responder/incident/:id/assessment` | Not merged yet |
+| Post-Fall Assessment | Person 3 | `/responder/incident/:id/assessment` | Integrated (simulated vitals) |
 
 A confirmed fall POSTs the shared `FallEvent` to `/api/incidents/fall`, which opens
 an alert and pushes it to the Facility tab over SSE. `FallEvent` is declared once, in
 [`lib/types/incident.ts`](./lib/types/incident.ts), and re-exported by `lib/fall/types.ts`.
+
+## Run
+
+```bash
+npm install
+npm run dev
+```
+
+Then open `/monitor` for cameras / facility / responder, or
+`/responder/incident/incident-demo-001/assessment` for the post-fall flow.
+A Gemini key is optional — without it the assessment uses the offline parser.
+See `.env.example`.
 
 ## Plan
 
@@ -23,6 +35,7 @@ Module specs:
 - [Module 1 — Fall Detection](./docs/module-1-fall-detection.md)
 - [Module 2 — Incident Response](./docs/module-2-incident-response.md)
 - [Module 3 — Post-Fall Assessment](./docs/module-3-post-fall-assessment.md)
+  — [implementation notes](./docs/module-3-implementation.md)
 
 ## Demo facility
 

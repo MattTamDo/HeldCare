@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored MediaPipe WASM loaders served from /public.
     "public/mediapipe/**",
+    // Stage 3 reference trees — not on the demo path.
+    "mobile/**",
+    "electron/**",
   ]),
 ]);
 

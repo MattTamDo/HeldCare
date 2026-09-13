@@ -81,11 +81,17 @@ export function ResponderAlerts({
             <p className="mt-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
               {incident.responderName} is on the way
             </p>
+            <a
+              href={`/responder/incident/${incident.id}/assessment`}
+              className="mx-auto mt-5 flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-7 py-4 text-base font-bold text-white transition hover:bg-sky-500"
+            >
+              Open post-fall assessment
+            </a>
             <button
               type="button"
               onClick={finish}
               disabled={busy}
-              className="mx-auto mt-5 flex items-center gap-2 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+              className="mx-auto mt-3 flex items-center gap-2 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
             >
               <CheckIcon className="size-5" />
               Mark as resolved
