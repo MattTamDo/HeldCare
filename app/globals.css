@@ -1,16 +1,15 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
+/* Toggled by the header switch, not the OS, so a demo can be forced either way. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
-html,
 body {
-  background: #020617;
-  color: #e2e8f0;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Emergency pulse used only by the confirmed-fall banner. */

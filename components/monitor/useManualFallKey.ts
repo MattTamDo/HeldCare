@@ -7,8 +7,10 @@ import { useEffect } from "react";
  * `reportFall` contract the detector uses. Registered once per page so four
  * camera windows cannot emit four events from one keypress.
  */
-export function useManualFallKey(trigger: () => void): void {
+export function useManualFallKey(trigger: () => void, enabled = true): void {
   useEffect(() => {
+    if (!enabled) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "f" && event.key !== "F") return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -28,5 +30,5 @@ export function useManualFallKey(trigger: () => void): void {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [trigger]);
+  }, [trigger, enabled]);
 }

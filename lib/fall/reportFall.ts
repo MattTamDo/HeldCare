@@ -27,9 +27,8 @@ let lastReportedAt = 0;
  * The single place a confirmed fall leaves this module — both the detector and
  * the manual `F` fallback call it.
  *
- * Today it logs and (optionally) POSTs. Person 2 only needs to point
- * `NEXT_PUBLIC_FALL_ENDPOINT` at `/api/incidents/fall`; the payload is already
- * the agreed `FallEvent` shape.
+ * It logs and POSTs the agreed `FallEvent` shape to the incident module's
+ * `/api/incidents/fall`, which opens the alert the facility dashboard shows.
  */
 export async function reportFall(
   event: FallEvent,

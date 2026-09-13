@@ -1,12 +1,30 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
 
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "HeldCare — Room Camera",
-  description:
-    "Fall detection and room camera monitoring for the CareFall emergency-response demo.",
+  title: "HeldCare",
+  description: "Senior-living emergency-response system",
 };
+
+/** Applies the saved theme before first paint so the page never flashes. */
+const THEME_SCRIPT = `
+try {
+  var saved = localStorage.getItem("carefall-theme");
+  if (saved === "dark") document.documentElement.classList.add("dark");
+} catch (e) {}
+`;
 
 export default function RootLayout({
   children,
@@ -14,8 +32,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {children}
       </body>
     </html>
