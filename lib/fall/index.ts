@@ -18,13 +18,19 @@ export type {
 } from "./types";
 
 export {
+  CAMERA_WALL,
   DEFAULT_ROOM_ID,
   FALL_CONFIG,
   FRAME_INTERVAL_MS,
   ROOM_DIRECTORY,
+  frameIntervalMs,
   getMonitoredRoom,
 } from "./config";
-export type { MonitoredRoom } from "./config";
+export type {
+  CameraSourceConfig,
+  CameraSourceKind,
+  MonitoredRoom,
+} from "./config";
 
 export { FallFeatureExtractor, POSE_LANDMARK } from "./fallFeatures";
 export { FallStateMachine } from "./fallStateMachine";
@@ -37,6 +43,6 @@ export {
   resetFallDedupe,
 } from "./reportFall";
 export type { FallReportOutcome, ReportedFall } from "./reportFall";
-export { createPoseDetector } from "./poseClient";
-export type { PoseDetector, PoseSample } from "./poseClient";
+export { acquirePoseRuntime, releasePoseRuntime } from "./poseClient";
+export type { PoseRuntime, PoseSample } from "./poseClient";
 export { clearCanvas, drawPoseSkeleton, skeletonColor } from "./drawPose";

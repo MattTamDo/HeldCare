@@ -1,5 +1,4 @@
-import { RoomCameraMonitor } from "@/components/camera/RoomCameraMonitor";
-import { getMonitoredRoom } from "@/lib/fall/config";
+import { SingleRoomMonitor } from "@/components/monitor/SingleRoomMonitor";
 
 export default async function RoomCameraPage({
   params,
@@ -10,10 +9,5 @@ export default async function RoomCameraPage({
 }) {
   const [{ roomId }, query] = await Promise.all([params, searchParams]);
 
-  return (
-    <RoomCameraMonitor
-      room={getMonitoredRoom(roomId)}
-      demoMode={query.demo === "true"}
-    />
-  );
+  return <SingleRoomMonitor roomId={roomId} demoMode={query.demo === "true"} />;
 }

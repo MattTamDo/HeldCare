@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CareFall — Room Camera",
+  title: "HeldCare — Room Camera",
   description:
     "Fall detection and room camera monitoring for the CareFall emergency-response demo.",
 };

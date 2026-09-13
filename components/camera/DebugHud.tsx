@@ -1,4 +1,4 @@
-import type { FallMonitorState } from "@/hooks/useFallMonitor";
+import type { FallSourceState } from "@/hooks/useFallSource";
 import { FALL_CONFIG } from "@/lib/fall/config";
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -37,7 +37,7 @@ function SignalBar({
   );
 }
 
-export function DebugHud({ state }: { state: FallMonitorState }) {
+export function DebugHud({ state }: { state: FallSourceState }) {
   const { features, scores } = state;
   const weights = FALL_CONFIG.confidence.weights;
 

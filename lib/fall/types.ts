@@ -127,21 +127,36 @@ export type FallDetectorSnapshot = {
 
 export type PoseRuntimeMode = "worker" | "main";
 
+export type PoseLandmarkerSettings = {
+  wasmBasePath: string;
+  modelAssetPath: string;
+  delegate: "GPU" | "CPU";
+  numPoses: number;
+  minPoseDetectionConfidence: number;
+  minPosePresenceConfidence: number;
+  minTrackingConfidence: number;
+};
+
+/**
+ * One worker serves every camera window, but each window gets its own
+ * landmarker so MediaPipe's frame-to-frame tracking is not confused by
+ * interleaved streams.
+ */
 export type PoseWorkerRequest =
+  | ({ type: "init"; sourceId: string } & PoseLandmarkerSettings)
+  | { type: "open"; sourceId: string }
   | {
-      type: "init";
-      wasmBasePath: string;
-      modelAssetPath: string;
-      delegate: "GPU" | "CPU";
-      numPoses: number;
-      minPoseDetectionConfidence: number;
-      minPosePresenceConfidence: number;
-      minTrackingConfidence: number;
+      type: "detect";
+      id: number;
+      sourceId: string;
+      bitmap: ImageBitmap;
+      t: number;
     }
-  | { type: "detect"; id: number; bitmap: ImageBitmap; t: number }
+  | { type: "closeSource"; sourceId: string }
   | { type: "close" };
 
 export type PoseWorkerResponse =
   | { type: "ready"; delegate: "GPU" | "CPU" }
+  | { type: "opened"; sourceId: string }
   | { type: "result"; id: number; t: number; landmarks: PoseLandmark[] | null }
-  | { type: "error"; id?: number; message: string };
+  | { type: "error"; id?: number; sourceId?: string; message: string };

@@ -3,6 +3,7 @@
 import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 import type {
   PoseLandmark,
+  PoseLandmarkerSettings,
   PoseWorkerRequest,
   PoseWorkerResponse,
 } from "./types";
@@ -11,18 +12,20 @@ import type {
  * Runs MediaPipe Pose Landmarker off the main thread so camera rendering stays
  * smooth. Frames arrive as transferred `ImageBitmap`s.
  *
- * `poseClient.ts` falls back to main-thread inference if this worker cannot
- * initialize, so nothing here is load-bearing for the demo.
+ * Every camera window shares this worker but owns a separate landmarker, keyed
+ * by `sourceId`, so MediaPipe's video tracking never sees two streams mixed
+ * together. `poseClient.ts` falls back to main-thread inference if this worker
+ * cannot initialize, so nothing here is load-bearing for the demo.
  */
 
-let landmarker: PoseLandmarker | null = null;
+const landmarkers = new Map<string, PoseLandmarker>();
 
-function post(message: PoseWorkerResponse, transfer?: Transferable[]): void {
-  if (transfer) {
-    self.postMessage(message, transfer);
-  } else {
-    self.postMessage(message);
-  }
+let settings: PoseLandmarkerSettings | null = null;
+/** Loader variant and delegate that actually worked, reused for later windows. */
+let resolved: { useModule: boolean; delegate: "GPU" | "CPU" } | null = null;
+
+function post(message: PoseWorkerResponse): void {
+  self.postMessage(message);
 }
 
 /**
@@ -43,36 +46,43 @@ function isClassicWorkerScope(): boolean {
 }
 
 async function createLandmarker(
-  request: Extract<PoseWorkerRequest, { type: "init" }>,
+  config: PoseLandmarkerSettings,
   delegate: "GPU" | "CPU",
   useModule: boolean,
 ): Promise<PoseLandmarker> {
   const fileset = await FilesetResolver.forVisionTasks(
-    request.wasmBasePath,
+    config.wasmBasePath,
     useModule,
   );
   return PoseLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: request.modelAssetPath, delegate },
+    baseOptions: { modelAssetPath: config.modelAssetPath, delegate },
     runningMode: "VIDEO",
-    numPoses: request.numPoses,
-    minPoseDetectionConfidence: request.minPoseDetectionConfidence,
-    minPosePresenceConfidence: request.minPosePresenceConfidence,
-    minTrackingConfidence: request.minTrackingConfidence,
+    numPoses: config.numPoses,
+    minPoseDetectionConfidence: config.minPoseDetectionConfidence,
+    minPosePresenceConfidence: config.minPosePresenceConfidence,
+    minTrackingConfidence: config.minTrackingConfidence,
   });
 }
 
+/** First window also decides which loader/delegate combination works here. */
 async function init(
   request: Extract<PoseWorkerRequest, { type: "init" }>,
 ): Promise<void> {
+  const { type, sourceId, ...config } = request;
+  void type;
+  settings = config;
+
   const loaderOrder = isClassicWorkerScope() ? [false, true] : [true, false];
   const delegates: ("GPU" | "CPU")[] =
-    request.delegate === "CPU" ? ["CPU"] : ["GPU", "CPU"];
+    config.delegate === "CPU" ? ["CPU"] : ["GPU", "CPU"];
 
   let lastError: unknown;
   for (const useModule of loaderOrder) {
     for (const delegate of delegates) {
       try {
-        landmarker = await createLandmarker(request, delegate, useModule);
+        const landmarker = await createLandmarker(config, delegate, useModule);
+        landmarkers.set(sourceId, landmarker);
+        resolved = { useModule, delegate };
         post({ type: "ready", delegate });
         return;
       } catch (error) {
@@ -82,6 +92,24 @@ async function init(
   }
 
   throw lastError ?? new Error("pose landmarker could not be created");
+}
+
+async function openSource(sourceId: string): Promise<void> {
+  if (landmarkers.has(sourceId)) {
+    post({ type: "opened", sourceId });
+    return;
+  }
+  if (!settings || !resolved) {
+    throw new Error("pose worker is not initialized");
+  }
+
+  const landmarker = await createLandmarker(
+    settings,
+    resolved.delegate,
+    resolved.useModule,
+  );
+  landmarkers.set(sourceId, landmarker);
+  post({ type: "opened", sourceId });
 }
 
 self.onmessage = async (event: MessageEvent<PoseWorkerRequest>) => {
@@ -94,13 +122,20 @@ self.onmessage = async (event: MessageEvent<PoseWorkerRequest>) => {
         break;
       }
 
+      case "open": {
+        await openSource(request.sourceId);
+        break;
+      }
+
       case "detect": {
+        const landmarker = landmarkers.get(request.sourceId);
         if (!landmarker) {
           request.bitmap.close();
           post({
             type: "error",
             id: request.id,
-            message: "pose landmarker not initialized",
+            sourceId: request.sourceId,
+            message: `no landmarker for source ${request.sourceId}`,
           });
           return;
         }
@@ -118,9 +153,15 @@ self.onmessage = async (event: MessageEvent<PoseWorkerRequest>) => {
         break;
       }
 
+      case "closeSource": {
+        landmarkers.get(request.sourceId)?.close();
+        landmarkers.delete(request.sourceId);
+        break;
+      }
+
       case "close": {
-        landmarker?.close();
-        landmarker = null;
+        for (const landmarker of landmarkers.values()) landmarker.close();
+        landmarkers.clear();
         self.close();
         break;
       }
@@ -130,6 +171,7 @@ self.onmessage = async (event: MessageEvent<PoseWorkerRequest>) => {
     post({
       type: "error",
       id: request.type === "detect" ? request.id : undefined,
+      sourceId: "sourceId" in request ? request.sourceId : undefined,
       message: error instanceof Error ? error.message : String(error),
     });
   }

@@ -1,4 +1,4 @@
-import type { FallMonitorStatus } from "@/hooks/useFallMonitor";
+import type { FallSourceStatus } from "@/hooks/useFallSource";
 import type { FallState } from "@/lib/fall/types";
 
 type Tone = "idle" | "good" | "warn" | "alert";
@@ -18,7 +18,7 @@ const DOT_STYLES: Record<Tone, string> = {
 };
 
 export function describeMonitorState(
-  status: FallMonitorStatus,
+  status: FallSourceStatus,
   fallState: FallState,
 ): { label: string; tone: Tone } {
   if (fallState === "CONFIRMED_FALL") {
@@ -42,7 +42,7 @@ export function StatusPill({
   status,
   fallState,
 }: {
-  status: FallMonitorStatus;
+  status: FallSourceStatus;
   fallState: FallState;
 }) {
   const { label, tone } = describeMonitorState(status, fallState);

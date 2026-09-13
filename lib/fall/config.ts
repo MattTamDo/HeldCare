@@ -11,10 +11,28 @@ export type MonitoredRoom = {
 };
 
 /**
- * Minimal local directory so `/camera/204` can render a name. The authoritative
- * facility directory belongs to Person 2's incident module.
+ * Minimal local directory so the camera pages can render names. The
+ * authoritative facility directory belongs to Person 2's incident module.
  */
 export const ROOM_DIRECTORY: Record<string, MonitoredRoom> = {
+  "201": {
+    roomId: "201",
+    residentId: "harold",
+    residentName: "Harold Jenkins",
+    floor: 2,
+  },
+  "202": {
+    roomId: "202",
+    residentId: "doris",
+    residentName: "Doris Whitfield",
+    floor: 2,
+  },
+  "203": {
+    roomId: "203",
+    residentId: "ernest",
+    residentName: "Ernest Caldwell",
+    floor: 2,
+  },
   "204": {
     roomId: "204",
     residentId: "margaret",
@@ -22,6 +40,31 @@ export const ROOM_DIRECTORY: Record<string, MonitoredRoom> = {
     floor: 2,
   },
 };
+
+export type CameraSourceKind = "live" | "video";
+
+export type CameraSourceConfig = {
+  id: string;
+  kind: CameraSourceKind;
+  roomId: string;
+  /**
+   * Clip served from `/public/demo`. Missing files are fine — the tile then
+   * asks for an upload. Only used by `video` sources.
+   */
+  defaultSrc?: string;
+};
+
+/**
+ * The four windows on `/monitor`: three recorded clips plus the live room
+ * camera. Every window runs the same detector and reports through the same
+ * `reportFall` contract.
+ */
+export const CAMERA_WALL: CameraSourceConfig[] = [
+  { id: "clip-1", kind: "video", roomId: "201", defaultSrc: "/demo/clip-1.mp4" },
+  { id: "clip-2", kind: "video", roomId: "202", defaultSrc: "/demo/clip-2.mp4" },
+  { id: "clip-3", kind: "video", roomId: "203", defaultSrc: "/demo/clip-3.mp4" },
+  { id: "live", kind: "live", roomId: "204" },
+];
 
 export const DEFAULT_ROOM_ID = "204";
 
@@ -38,8 +81,13 @@ export function getMonitoredRoom(roomId: string): MonitoredRoom {
 
 export const FALL_CONFIG = {
   runtime: {
-    /** Inference rate. Deliberately well below the render frame rate. */
+    /** Inference rate per source. Deliberately well below the render rate. */
     targetFps: 12,
+    /**
+     * Per-source rate once more than one window is running, so four windows
+     * share the GPU without starving each other.
+     */
+    sharedTargetFps: 8,
     preferWorker: true,
     workerInitTimeoutMs: 20_000,
     /**
@@ -165,3 +213,12 @@ export const FALL_CONFIG = {
 } as const;
 
 export const FRAME_INTERVAL_MS = 1000 / FALL_CONFIG.runtime.targetFps;
+
+/** Inference interval for one source, given how many are currently running. */
+export function frameIntervalMs(activeSources: number): number {
+  const fps =
+    activeSources > 1
+      ? FALL_CONFIG.runtime.sharedTargetFps
+      : FALL_CONFIG.runtime.targetFps;
+  return 1000 / fps;
+}
