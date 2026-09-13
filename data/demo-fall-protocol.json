@@ -1,0 +1,27 @@
+{
+  "name": "Demo Fall Response",
+  "disclaimer": "Hackathon demonstration only. Not medical guidance.",
+  "steps": [
+    {
+      "id": "responsiveness",
+      "title": "Record responsiveness",
+      "condition": "default",
+      "instruction": "Record whether the resident is responsive.",
+      "visualKey": "general"
+    },
+    {
+      "id": "concern",
+      "title": "Record reported concern",
+      "condition": "reported_concern",
+      "instruction": "Document the resident's reported concern and escalate according to facility protocol.",
+      "visualKey": "body-region"
+    },
+    {
+      "id": "escalation",
+      "title": "Escalate",
+      "condition": "requires_escalation",
+      "instruction": "Notify the designated clinical staff according to facility policy.",
+      "visualKey": "general"
+    }
+  ]
+}

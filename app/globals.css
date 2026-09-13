@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #0b0e13;
+  --color-panel: #151a22;
+  --color-panel-2: #1d242e;
+  --color-edge: #2b3644;
+  --color-accent: #38bdf8;
+  --color-alert: #f43f5e;
+}
+
+html,
+body {
+  background: var(--color-surface);
+  color: #e6edf6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The assessment screen is used one-handed on a phone; never let a stray
+   wide element introduce sideways scrolling. */
+body {
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
