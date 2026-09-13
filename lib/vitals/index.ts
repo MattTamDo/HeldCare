@@ -12,6 +12,13 @@ export { PresageVitalsProvider } from "./presage-provider";
  * selects the mock.
  */
 export function configuredVitalsMode(): VitalsMode {
+  if (
+    typeof window !== "undefined" &&
+    (window as typeof window & { __carefallElectron?: { isElectron?: boolean } })
+      .__carefallElectron?.isElectron
+  ) {
+    return "live";
+  }
   return process.env.NEXT_PUBLIC_PRESAGE_MODE === "live" ? "live" : "mock";
 }
 

@@ -8,6 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "electron:dev": "node scripts/electron-dev.mjs",
+    "electron:open": "electron electron/main.cjs",
+    "presage:camera-bridge": "node scripts/smartspectra-camera-bridge.mjs",
+    "tests:camera": "node scripts/live-camera-cardio.mjs",
+    "tests:cardio": "node scripts/headless-smartspectra-smoke.mjs",
     "smartspectra:smoke": "node scripts/headless-smartspectra-smoke.mjs"
   },
   "dependencies": {

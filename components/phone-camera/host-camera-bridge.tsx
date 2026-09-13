@@ -31,15 +31,19 @@ function statusLabel(status: PhoneCameraStatus): string {
 
 export default function HostCameraBridge({
   onStream,
+  onMobileVitals,
   recordedVitals,
 }: {
   onStream?: (stream: MediaStream) => void;
+  onMobileVitals?: (vitals: Vitals) => void;
   recordedVitals?: Vitals;
 }) {
   const [sessionId, setSessionId] = useState("");
   const [pairUrl, setPairUrl] = useState("");
   const [status, setStatus] = useState<PhoneCameraStatus>("idle");
   const [error, setError] = useState<string>();
+  const [mobileHealthPackets, setMobileHealthPackets] = useState(0);
+  const [mobileHealthUpdatedAt, setMobileHealthUpdatedAt] = useState<number>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const liveKitRoomRef = useRef<any>(null);
@@ -78,6 +82,34 @@ export default function HostCameraBridge({
     if (status !== "paired" && status !== "connected") return;
     void publishMetricsToPhone();
   }, [recordedVitals, status]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/mobile-health/${encodeURIComponent(sessionId)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const session = (await response.json()) as {
+          latest?: { vitals?: Vitals };
+          packets?: number;
+          updatedAt?: number;
+        };
+        if (!session.latest?.vitals) return;
+
+        setMobileHealthPackets(session.packets ?? 0);
+        setMobileHealthUpdatedAt(session.updatedAt);
+        onMobileVitals?.(session.latest.vitals);
+      } catch {
+        // Keep phone camera pairing resilient if the health bridge is not active.
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [onMobileVitals, sessionId]);
 
   async function startPairing() {
     pcRef.current?.close();
@@ -236,6 +268,18 @@ export default function HostCameraBridge({
       {pairUrl ? (
         <div className="mt-3 rounded-lg border border-edge bg-surface p-2">
           <p className="break-all text-xs text-slate-300">{pairUrl}</p>
+          <div className="mt-2 rounded-lg border border-sky-400/20 bg-sky-500/10 p-2">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-sky-200">
+              EXPO HEALTH BRIDGE
+            </p>
+            <p className="mt-1 break-all text-[11px] text-slate-400">
+              EXPO_PUBLIC_CAREFALL_SESSION_ID={sessionId}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Use this session with EXPO_PUBLIC_CAREFALL_PLATFORM_URL set to your
+              Cloudflare URL so phone measurements sync into this panel.
+            </p>
+          </div>
         </div>
       ) : null}
 
@@ -248,6 +292,21 @@ export default function HostCameraBridge({
       />
 
       {error ? <p className="mt-2 text-xs text-alert">{error}</p> : null}
+      <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-edge bg-surface px-3 py-2">
+        <span className="text-[11px] font-semibold tracking-[0.14em] text-slate-500">
+          HEALTH PACKETS
+        </span>
+        <span className="text-xs font-semibold text-slate-300">
+          {mobileHealthPackets > 0
+            ? `${mobileHealthPackets} synced`
+            : "Waiting for Expo tracker"}
+        </span>
+      </div>
+      {mobileHealthUpdatedAt ? (
+        <p className="mt-1 text-[11px] text-slate-500">
+          Last phone health update {Math.max(0, Math.round((Date.now() - mobileHealthUpdatedAt) / 1000))}s ago
+        </p>
+      ) : null}
       <p className="mt-2 text-[11px] text-slate-500">
         Open the link on the iPhone over HTTPS. With Cloudflare Tunnel configured,
         this uses LiveKit over WSS and targets 1080p at 30 FPS with no audio.

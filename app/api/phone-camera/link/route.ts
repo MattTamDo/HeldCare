@@ -23,17 +23,25 @@ export function GET(request: Request) {
   }
 
   const config = runtimeConfig();
+  const transport =
+    config.phoneCamera.transport === "livekit"
+      ? "livekit"
+      : config.phoneCamera.transport === "local"
+        ? "local"
+        : config.livekit.configured
+          ? "livekit"
+          : "local";
   const pairUrl = new URL(`/phone-camera/${encodeURIComponent(sessionId)}`, baseUrlFrom(request));
-  pairUrl.searchParams.set("transport", config.livekit.configured ? "livekit" : "local");
+  pairUrl.searchParams.set("transport", transport);
 
-  if (process.env.LIVEKIT_ACCESS_CODE) {
+  if (transport === "livekit" && process.env.LIVEKIT_ACCESS_CODE) {
     pairUrl.searchParams.set("code", process.env.LIVEKIT_ACCESS_CODE);
   }
 
   return NextResponse.json(
     {
       url: pairUrl.toString(),
-      transport: config.livekit.configured ? "livekit" : "local",
+      transport,
       livekitUrl: config.livekit.url,
     },
     { headers: { "Cache-Control": "no-store" } },

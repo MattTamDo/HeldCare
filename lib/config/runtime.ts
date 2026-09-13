@@ -8,6 +8,7 @@ export type RuntimeConfig = {
   };
   phoneCamera: {
     publicBaseUrl: string | null;
+    transport: "auto" | "local" | "livekit";
   };
 };
 
@@ -16,6 +17,12 @@ export function runtimeConfig(): RuntimeConfig {
     process.env.CLOUDFLARE_TUNNEL_URL ??
     process.env.NEXT_PUBLIC_PHONE_BASE_URL ??
     null;
+
+  const requestedPhoneTransport = process.env.PHONE_CAMERA_TRANSPORT;
+  const phoneTransport =
+    requestedPhoneTransport === "local" || requestedPhoneTransport === "livekit"
+      ? requestedPhoneTransport
+      : "auto";
 
   return {
     smartSpectra: {
@@ -31,6 +38,7 @@ export function runtimeConfig(): RuntimeConfig {
     },
     phoneCamera: {
       publicBaseUrl,
+      transport: phoneTransport,
     },
   };
 }

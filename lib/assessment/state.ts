@@ -1,5 +1,5 @@
 import { regionFromConcern, visualKeyFromConcern } from "./body-region";
-import type { AssessmentState, Vitals, VisibleConcern } from "./types";
+import type { AssessmentState, VideoProof, Vitals, VisibleConcern } from "./types";
 import { selectStep } from "@/lib/protocol";
 
 export type Observation = {
@@ -43,6 +43,13 @@ export function applyVitals(state: AssessmentState, vitals: Vitals): AssessmentS
   return derive({ ...state, vitals });
 }
 
+export function applyVideoProof(
+  state: AssessmentState,
+  videoProof: VideoProof,
+): AssessmentState {
+  return derive({ ...state, videoProof });
+}
+
 function derive(state: AssessmentState): AssessmentState {
   return {
     ...state,
@@ -77,6 +84,12 @@ export function readiness(state: AssessmentState) {
       id: "vitals",
       label: "Contactless measurement taken",
       done: Boolean(state.vitals?.pulse),
+      required: false,
+    },
+    {
+      id: "video-proof",
+      label: "Video proof captured",
+      done: Boolean(state.videoProof),
       required: false,
     },
     {

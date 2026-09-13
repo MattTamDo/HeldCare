@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { loadIncident, mockIncident } from "@/lib/assessment/incident";
-import { applyObservation, applyVitals } from "@/lib/assessment/state";
+import {
+  applyObservation,
+  applyVideoProof,
+  applyVitals,
+} from "@/lib/assessment/state";
 import { submitAssessment, type SubmitOutcome } from "@/lib/assessment/submit";
 import {
   buildAssessmentResult,
@@ -11,6 +15,7 @@ import {
   type AssessmentResult,
   type AssessmentState,
   type BodyRegion,
+  type VideoProof,
   type Vitals,
 } from "@/lib/assessment/types";
 import type { Observation } from "@/lib/assessment/state";
@@ -113,6 +118,10 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
 
   const handleVitals = useCallback((vitals: Vitals) => {
     setState((prev) => applyVitals(prev, vitals));
+  }, []);
+
+  const handleVideoProof = useCallback((proof: VideoProof) => {
+    setState((prev) => applyVideoProof(prev, proof));
   }, []);
 
   const handleComplete = useCallback(async () => {
@@ -262,7 +271,9 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
           </>
         ) : null}
 
-        {step === "HEALTH VITAL" ? <VitalsPanel onVitals={handleVitals} /> : null}
+        {step === "HEALTH VITAL" ? (
+          <VitalsPanel onVitals={handleVitals} onVideoProof={handleVideoProof} />
+        ) : null}
 
         {step === "CAREFALL LIVE" ? (
           <>

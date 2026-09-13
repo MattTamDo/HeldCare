@@ -45,6 +45,16 @@ export type Vitals = {
   scanSeconds?: number;
 };
 
+export type VideoProof = {
+  id: string;
+  capturedAt: number;
+  durationSeconds: number;
+  sizeBytes: number;
+  mimeType: string;
+  source: "laptop" | "phone" | "smartspectra";
+  fileName: string;
+};
+
 export type AssessmentResultVitals = Pick<
   Vitals,
   "pulse" | "respiration" | "signalQuality"
@@ -70,6 +80,7 @@ export type AssessmentState = {
   protocolStep?: string;
   visualKey?: string;
   guidanceViewed?: boolean;
+  videoProof?: VideoProof;
   /** Derived from `reportedConcern`; drives the 3D highlight. */
   bodyRegion?: BodyRegion;
 };
@@ -81,6 +92,7 @@ export type AssessmentResult = {
   reportedConcern?: string;
   visibleConcern?: string;
   vitals?: AssessmentResultVitals;
+  videoProof?: VideoProof;
   completedAt: number;
 };
 
@@ -122,6 +134,7 @@ export function buildAssessmentResult(
     reportedConcern: state.reportedConcern,
     visibleConcern: state.visibleConcern,
     vitals,
+    videoProof: state.videoProof,
     completedAt: Date.now(),
   };
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { Vitals } from "@/lib/assessment/types";
+import type { VideoProof, Vitals } from "@/lib/assessment/types";
 import HostCameraBridge from "@/components/phone-camera/host-camera-bridge";
 import { readRuntimeConfig } from "@/lib/config/client";
 import type { RuntimeConfig } from "@/lib/config/runtime";
@@ -17,7 +17,10 @@ import { Panel, Stat } from "./ui";
 
 const ACTIVE_STAGES = new Set(["initializing", "searching", "acquired", "measuring"]);
 const SCAN_DURATION_SECONDS = 15;
-type CameraSource = "laptop" | "phone";
+type CameraSource = "laptop" | "phone" | "bridge";
+type VideoProofClip = VideoProof & {
+  url: string;
+};
 type MotionSample = {
   pixels: Uint8ClampedArray;
   stillCount: number;
@@ -126,6 +129,7 @@ function pipelineLabel(config?: RuntimeConfig): string {
 
 function cameraInputLabel(config?: RuntimeConfig): string {
   if (!config) return "Checking camera transport";
+  if (config.smartSpectra.configured) return "Node SmartSpectra bridge";
   return config.livekit.configured
     ? "LiveKit video, 30fps requested"
     : "Local WebRTC video, 30fps requested";
@@ -332,14 +336,21 @@ function RunMetric({
 
 export default function VitalsPanel({
   onVitals,
+  onVideoProof,
 }: {
   onVitals: (vitals: Vitals) => void;
+  onVideoProof?: (proof: VideoProof) => void;
 }) {
   const providerRef = useRef<VitalsProvider | null>(null);
   const laptopVideoRef = useRef<HTMLVideoElement>(null);
   const motionVideoRef = useRef<HTMLVideoElement>(null);
   const motionSampleRef = useRef<MotionSample | undefined>(undefined);
   const laptopStreamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const proofChunksRef = useRef<BlobPart[]>([]);
+  const proofStartedAtRef = useRef<number | undefined>(undefined);
+  const proofUrlRef = useRef<string | undefined>(undefined);
+  const mountedRef = useRef(false);
   const [snapshot, setSnapshot] = useState<VitalsSnapshot>({
     stage: "idle",
     vitals: {},
@@ -352,12 +363,20 @@ export default function VitalsPanel({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [noMotionWarning, setNoMotionWarning] = useState(false);
+  const [bridgeSessionId, setBridgeSessionId] = useState("mac-camera");
+  const [bridgeStatus, setBridgeStatus] = useState("Bridge not connected");
+  const [bridgePackets, setBridgePackets] = useState(0);
+  const [videoProof, setVideoProof] = useState<VideoProofClip>();
+  const [videoProofStatus, setVideoProofStatus] = useState("No proof recorded");
+  const [recordingProof, setRecordingProof] = useState(false);
+  const preferredSourceSetRef = useRef(false);
 
   // Kept in a ref so the subscription never needs re-creating.
   const onVitalsRef = useRef(onVitals);
   onVitalsRef.current = onVitals;
 
   useEffect(() => {
+    mountedRef.current = true;
     const provider = createVitalsProvider();
     providerRef.current = provider;
     setMode(provider.mode);
@@ -370,11 +389,30 @@ export default function VitalsPanel({
     });
 
     return () => {
+      mountedRef.current = false;
       unsubscribe?.();
       void provider.stop();
       laptopStreamRef.current?.getTracks().forEach((track) => track.stop());
+      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+      if (proofUrlRef.current) URL.revokeObjectURL(proofUrlRef.current);
       setCameraStream(null);
       providerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePresageStream = (event: Event) => {
+      const stream = (event as CustomEvent<MediaStream | null>).detail ?? null;
+      setCameraStream(stream);
+      if (laptopVideoRef.current) laptopVideoRef.current.srcObject = stream;
+      setLaptopCameraStatus(
+        stream ? "SmartSpectra camera connected" : "Camera not started",
+      );
+    };
+
+    window.addEventListener("carefall:presage-stream", handlePresageStream);
+    return () => {
+      window.removeEventListener("carefall:presage-stream", handlePresageStream);
     };
   }, []);
 
@@ -384,7 +422,21 @@ export default function VitalsPanel({
       .then((config) => {
         if (cancelled) return;
         setRuntime(config);
-        if (config.smartSpectra.configured) setMode("live");
+        if (config.smartSpectra.configured) {
+          setMode("live");
+          if (!preferredSourceSetRef.current) {
+            preferredSourceSetRef.current = true;
+            if (window.__carefallElectron?.isElectron) {
+              setCameraSource("laptop");
+            } else {
+              laptopStreamRef.current?.getTracks().forEach((track) => track.stop());
+              laptopStreamRef.current = null;
+              setCameraStream(null);
+              if (laptopVideoRef.current) laptopVideoRef.current.srcObject = null;
+              setCameraSource("bridge");
+            }
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setRuntime(undefined);
@@ -463,6 +515,67 @@ export default function VitalsPanel({
     };
   }, [cameraStream]);
 
+  useEffect(() => {
+    if (cameraSource !== "bridge" || !bridgeSessionId.trim()) return;
+
+    const session = bridgeSessionId.trim();
+    let cancelled = false;
+    setBridgeStatus(`Polling ${session}`);
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/mobile-health/${encodeURIComponent(session)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          if (!cancelled) setBridgeStatus(`Bridge API ${response.status}`);
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          latest?: { vitals?: Vitals; source?: string; validation?: { label?: string } };
+          packets?: number;
+          updatedAt?: number;
+        };
+
+        if (!payload.latest?.vitals) {
+          if (!cancelled) setBridgeStatus("Waiting for SmartSpectra bridge packets");
+          return;
+        }
+
+        const vitals = payload.latest.vitals;
+        const next = {
+          stage: "available" as const,
+          vitals,
+          validationHint: payload.latest.validation?.label,
+        };
+        if (!cancelled) {
+          setSnapshot(next);
+          setBridgePackets(payload.packets ?? vitals.packets ?? 0);
+          setBridgeStatus(
+            payload.updatedAt
+              ? `Synced ${Math.max(0, Math.round((Date.now() - payload.updatedAt) / 1000))}s ago`
+              : `Synced from ${payload.latest.source ?? "SmartSpectra"}`,
+          );
+          onVitalsRef.current(vitals);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBridgeStatus(
+            error instanceof Error ? error.message : "Bridge polling failed",
+          );
+        }
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(poll, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [bridgeSessionId, cameraSource]);
+
   const pulse = snapshot.vitals.pulse ? `${snapshot.vitals.pulse}` : "--";
   const respiration = snapshot.vitals.respiration
     ? `${snapshot.vitals.respiration}`
@@ -480,8 +593,120 @@ export default function VitalsPanel({
       ? `${elapsedSeconds}s / ${SCAN_DURATION_SECONDS}s`
       : `0s / ${SCAN_DURATION_SECONDS}s`;
   const metricCount = countAvailableMetricGroups(snapshot.vitals);
+  const proofSource: VideoProof["source"] =
+    cameraSource === "phone"
+      ? "phone"
+      : window.__carefallElectron?.isElectron
+        ? "smartspectra"
+        : "laptop";
+
+  function supportedVideoMimeType(): string {
+    const candidates = [
+      "video/webm;codecs=vp9",
+      "video/webm;codecs=vp8",
+      "video/webm",
+      "video/mp4",
+    ];
+    return (
+      candidates.find((type) => MediaRecorder.isTypeSupported(type)) ??
+      "video/webm"
+    );
+  }
+
+  function stopVideoProof() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  function startVideoProof() {
+    if (!cameraStream) {
+      setVideoProofStatus("Start a laptop or phone camera feed first.");
+      return;
+    }
+    if (!("MediaRecorder" in window)) {
+      setVideoProofStatus("Video proof recording is not supported here.");
+      return;
+    }
+
+    if (proofUrlRef.current) URL.revokeObjectURL(proofUrlRef.current);
+    proofUrlRef.current = undefined;
+    setVideoProof(undefined);
+    proofChunksRef.current = [];
+    proofStartedAtRef.current = Date.now();
+
+    const mimeType = supportedVideoMimeType();
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(cameraStream, { mimeType });
+    } catch {
+      setVideoProofStatus("Video proof recording is not available for this stream.");
+      return;
+    }
+    recorderRef.current = recorder;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) proofChunksRef.current.push(event.data);
+    };
+    recorder.onstop = () => {
+      if (!mountedRef.current) return;
+      const capturedAt = proofStartedAtRef.current ?? Date.now();
+      const durationSeconds = Math.max(
+        1,
+        Math.round((Date.now() - capturedAt) / 1000),
+      );
+      const blob = new Blob(proofChunksRef.current, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      proofUrlRef.current = url;
+      const fileName = `carefall-proof-${capturedAt}.${mimeType.includes("mp4") ? "mp4" : "webm"}`;
+      const proof: VideoProofClip = {
+        id: `${capturedAt}-${blob.size}`,
+        capturedAt,
+        durationSeconds,
+        sizeBytes: blob.size,
+        mimeType,
+        source: proofSource,
+        fileName,
+        url,
+      };
+      setRecordingProof(false);
+      setVideoProof(proof);
+      setVideoProofStatus(
+        `${durationSeconds}s proof captured · ${(blob.size / 1024 / 1024).toFixed(1)} MB`,
+      );
+      onVideoProof?.({
+        id: proof.id,
+        capturedAt: proof.capturedAt,
+        durationSeconds: proof.durationSeconds,
+        sizeBytes: proof.sizeBytes,
+        mimeType: proof.mimeType,
+        source: proof.source,
+        fileName: proof.fileName,
+      });
+    };
+    recorder.onerror = () => {
+      if (!mountedRef.current) return;
+      setRecordingProof(false);
+      setVideoProofStatus("Video proof recording failed.");
+    };
+
+    recorder.start(1000);
+    setRecordingProof(true);
+    setVideoProofStatus("Recording proof");
+  }
 
   async function handleStart() {
+    if (cameraSource === "bridge") {
+      setSnapshot((current) => ({
+        ...current,
+        stage: current.vitals.pulse || current.vitals.respiration ? "available" : "searching",
+        validationHint:
+          current.vitals.pulse || current.vitals.respiration
+            ? current.validationHint
+            : "Waiting for SmartSpectra Node bridge packets.",
+      }));
+      setBridgeStatus(`Polling ${bridgeSessionId.trim() || "mac-camera"}`);
+      return;
+    }
+
     try {
       setElapsedSeconds(0);
       setScanStartedAt(Date.now());
@@ -492,6 +717,12 @@ export default function VitalsPanel({
   }
 
   async function startLaptopCamera() {
+    if (window.__carefallElectron?.isElectron) {
+      setLaptopCameraStatus("Starting SmartSpectra camera");
+      await handleStart();
+      return;
+    }
+
     setLaptopCameraStatus("Requesting laptop camera");
     try {
       laptopStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -633,10 +864,59 @@ export default function VitalsPanel({
 
       <RecordedMetrics vitals={snapshot.vitals} />
 
-      {done ? (
-        <p className="mt-3 text-[11px] text-slate-500">
-          Estimates from a signal measurement. Not a diagnosis.
-        </p>
+      <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
+              VIDEO PROOF
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">{videoProofStatus}</p>
+          </div>
+          <span
+            className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${
+              recordingProof
+                ? "border-rose-400/40 text-rose-200"
+                : videoProof
+                  ? "border-emerald-400/40 text-emerald-200"
+                  : "border-edge text-slate-500"
+            }`}
+          >
+            {recordingProof ? "REC" : videoProof ? "SAVED" : "READY"}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={recordingProof ? stopVideoProof : startVideoProof}
+            disabled={!cameraStream && !recordingProof}
+            className="rounded-lg border border-sky-400/40 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:bg-sky-500/15 disabled:border-edge disabled:text-slate-600"
+          >
+            {recordingProof ? "STOP PROOF" : "RECORD PROOF"}
+          </button>
+          {videoProof ? (
+            <a
+              href={videoProof.url}
+              download={videoProof.fileName}
+              className="rounded-lg border border-emerald-400/40 px-3 py-2 text-center text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15"
+            >
+              DOWNLOAD
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="rounded-lg border border-edge px-3 py-2 text-xs font-semibold text-slate-600"
+            >
+              DOWNLOAD
+            </button>
+          )}
+        </div>
+      </div>
+
+        {done ? (
+          <p className="mt-3 text-[11px] text-slate-500">
+            Estimates from a signal measurement. Not a diagnosis.
+          </p>
       ) : null}
 
       <button
@@ -645,7 +925,11 @@ export default function VitalsPanel({
         disabled={running}
         className="mt-3 w-full rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/25 disabled:opacity-50"
       >
-        {running
+        {cameraSource === "bridge"
+          ? done
+            ? "SMARTSPECTRA BRIDGE ACTIVE"
+            : "CONNECT SMARTSPECTRA BRIDGE"
+          : running
           ? "MEASURING…"
           : done
             ? "MEASURE AGAIN"
@@ -661,7 +945,7 @@ export default function VitalsPanel({
       ) : null}
 
       <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setCameraSource("laptop")}
@@ -686,6 +970,24 @@ export default function VitalsPanel({
           >
             USE PHONE CAMERA
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              laptopStreamRef.current?.getTracks().forEach((track) => track.stop());
+              laptopStreamRef.current = null;
+              setCameraStream(null);
+              if (laptopVideoRef.current) laptopVideoRef.current.srcObject = null;
+              setCameraSource("bridge");
+            }}
+            aria-pressed={cameraSource === "bridge"}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              cameraSource === "bridge"
+                ? "border-emerald-400 bg-emerald-500/15 text-emerald-100"
+                : "border-edge bg-surface text-slate-400 hover:border-slate-500"
+            }`}
+          >
+            USE SMARTSPECTRA BRIDGE
+          </button>
         </div>
 
         {cameraSource === "laptop" ? (
@@ -708,10 +1010,15 @@ export default function VitalsPanel({
               </button>
             </div>
           </div>
-        ) : (
+        ) : cameraSource === "phone" ? (
           <div className="mt-3">
             <HostCameraBridge
               recordedVitals={snapshot.vitals}
+              onMobileVitals={(vitals) => {
+                const next = { stage: "available" as const, vitals };
+                setSnapshot(next);
+                onVitalsRef.current(vitals);
+              }}
               onStream={(stream) => {
                 setCameraStream(stream);
                 console.info(
@@ -720,6 +1027,36 @@ export default function VitalsPanel({
                 );
               }}
             />
+          </div>
+        ) : (
+          <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.16em] text-emerald-200">
+                  SMARTSPECTRA NODE BRIDGE
+                </p>
+                <p className="mt-1 text-xs text-slate-400">{bridgeStatus}</p>
+              </div>
+              <span className="rounded-full border border-emerald-400/30 px-2 py-1 text-xs font-semibold text-emerald-100">
+                {bridgePackets || packets} packets
+              </span>
+            </div>
+            <label className="mt-3 block text-[11px] font-semibold tracking-[0.14em] text-slate-500">
+              SESSION ID
+              <input
+                value={bridgeSessionId}
+                onChange={(event) => setBridgeSessionId(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm font-semibold text-slate-100 outline-none focus:border-emerald-400/70"
+              />
+            </label>
+            <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+              Run this in a separate terminal without opening the browser laptop
+              camera:
+              <br />
+              <code className="text-emerald-100">
+                SMARTSPECTRA_BRIDGE_SESSION_ID={bridgeSessionId || "mac-camera"} npm run presage:camera-bridge
+              </code>
+            </p>
           </div>
         )}
 

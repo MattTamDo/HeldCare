@@ -33,25 +33,21 @@ The app reads `SMARTSPECTRA_API_KEY` on the server via
 configured in the contactless health platform UI. The key is intentionally not
 returned to the browser.
 
-The pasted Electron quickstart notes that host apps can call:
+The verified Node.js SDK API is native/Node-side, not browser-side. The app must
+not import `@smartspectra/node-sdk` in a Next client component. Use one of these
+bridges instead:
 
-```js
-sdk.useMediaStream(remoteStream);
-await sdk.start();
-```
+- `npm run presage:camera-bridge`: opens the Mac camera with
+  `SmartSpectraSDK.useCamera()` and posts decoded metrics into
+  `/api/mobile-health/:sessionId`.
+- Expo/iOS native bridge: uses the native SmartSpectra SDK on the phone and
+  posts the same mobile-health payload shape.
+- Electron renderer bridge: can use `@smartspectra/node-sdk/renderer` with
+  `useMediaStream()` inside an Electron renderer, then forward metrics into the
+  same app-level `Vitals` shape.
 
-That call should happen in the live vitals provider once the host bridge emits
-the remote stream. The current HeldCare provider interface does not yet carry a
-camera stream, so the bridge logs the received stream and keeps the integration
-point narrow.
-
-Recommended next change:
-
-1. Extend `PresageVitalsProvider` with `setInputStream(stream: MediaStream)`.
-2. In `VitalsPanel`, keep the remote stream in state and pass it to the live
-   provider before `start()`.
-3. Move SmartSpectra-specific imports into a browser-only SDK adapter so the
-   mock mode still works without native SDK packages installed.
+The current browser `PresageVitalsProvider` remains a guard rail: it does not
+pretend the native Node SDK can run in the browser.
 
 ## Metrics Mapping
 
@@ -150,6 +146,76 @@ Useful smoke-test environment knobs:
 - `SMARTSPECTRA_SMOKE_TIMEOUT_MS=120000`
 - `SMARTSPECTRA_SMOKE_MAX_DURATION_MS=30000`
 - `SMARTSPECTRA_SMOKE_INTERFRAME_DELAY_MS=0`
+
+## Live Mac Camera Bridge
+
+The verified live-camera path uses the Node SDK API:
+
+```js
+sdk.useCamera({ deviceIndex: 0, width: 1280, height: 720, fps: 30 });
+sdk.start();
+```
+
+Start the Next app first:
+
+```bash
+npm run dev
+```
+
+Then start the bridge in another terminal:
+
+```bash
+SMARTSPECTRA_BRIDGE_SESSION_ID=mac-camera npm run presage:camera-bridge
+```
+
+The bridge posts real SmartSpectra vitals to:
+
+```text
+/api/mobile-health/mac-camera
+```
+
+To view those metrics in the responder UI today, use the phone-camera panel's
+health session polling path with a matching session ID, or set the Expo app to
+the same session. For quick verification without the web UI, run:
+
+```bash
+npm run tests:camera
+```
+
+That command opens the Mac camera and waits long enough for pulse, respiration,
+pressure waveform, and HRV samples.
+
+## Electron SmartSpectra App Path
+
+The preferred app-integrated path is Electron, because the SmartSpectra SDK is a
+Node/native SDK. Browser-only Next.js cannot import `@smartspectra/node-sdk`
+directly. The Electron shell wires the official SDK IPC path:
+
+- `electron/main.cjs` creates a `BrowserWindow` and calls
+  `bindSmartSpectraIpc(win)`.
+- `electron/preload.cjs` loads `@smartspectra/node-sdk/preload` and exposes the
+  local SmartSpectra API key plus metric bundles to the renderer.
+- `PresageVitalsProvider` detects `window.__carefallElectron`, imports
+  `@smartspectra/node-sdk/renderer`, sends frames to Electron main, decodes
+  metric packets, and emits the same `VitalsSnapshot` shape as the rest of the
+  app.
+
+Run:
+
+```bash
+npm run dev
+```
+
+In another terminal:
+
+```bash
+npm run electron:dev
+```
+
+Then open Health Vital and use the laptop camera path. In Electron, the
+`CONTACTLESS MEASUREMENT` Start button uses the real SmartSpectra SDK instead
+of the mock provider. In a normal browser, the app must still use the Node
+camera bridge or mock mode.
 
 For the live engine adapter, wire SDK events into `VitalsSnapshot` this way:
 
