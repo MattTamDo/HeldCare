@@ -98,6 +98,19 @@ export function RoomCameraMonitor({
               </div>
             )}
 
+            {cameraLive && !state.modelReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/70 text-center">
+                <span className="size-6 animate-spin rounded-full border-2 border-slate-600 border-t-sky-400" />
+                <p className="text-sm font-semibold text-slate-200">
+                  Loading pose model
+                </p>
+                <p className="max-w-xs text-xs text-slate-400">
+                  First run warms up the MediaPipe graph. Manual trigger (F)
+                  already works.
+                </p>
+              </div>
+            )}
+
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4">
               <span className="rounded-md bg-slate-950/70 px-2.5 py-1 text-xs font-semibold tracking-wide text-slate-200 backdrop-blur">
                 ROOM {room.roomId} · {room.residentName}

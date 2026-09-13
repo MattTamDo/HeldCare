@@ -25,15 +25,31 @@ function post(message: PoseWorkerResponse, transfer?: Transferable[]): void {
   }
 }
 
+/**
+ * MediaPipe ships two WASM loaders: a classic script and an ES module. Which
+ * one works depends on the worker type the bundler produced, and bundlers do
+ * not agree — Turbopack emits a classic worker even when asked for a module.
+ * Module workers expose `importScripts` but throw when it is called, so a
+ * zero-argument call is a safe probe.
+ */
+function isClassicWorkerScope(): boolean {
+  if (typeof importScripts !== "function") return false;
+  try {
+    importScripts();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function createLandmarker(
   request: Extract<PoseWorkerRequest, { type: "init" }>,
   delegate: "GPU" | "CPU",
+  useModule: boolean,
 ): Promise<PoseLandmarker> {
-  // `useModule: true` loads the ES-module WASM loader, which is the only
-  // variant importable from inside a module worker.
   const fileset = await FilesetResolver.forVisionTasks(
     request.wasmBasePath,
-    true,
+    useModule,
   );
   return PoseLandmarker.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: request.modelAssetPath, delegate },
@@ -48,17 +64,24 @@ async function createLandmarker(
 async function init(
   request: Extract<PoseWorkerRequest, { type: "init" }>,
 ): Promise<void> {
-  try {
-    landmarker = await createLandmarker(request, request.delegate);
-    post({ type: "ready", delegate: request.delegate });
-    return;
-  } catch (error) {
-    if (request.delegate === "CPU") throw error;
-    console.warn("[CareFall] worker GPU delegate failed, retrying on CPU", error);
+  const loaderOrder = isClassicWorkerScope() ? [false, true] : [true, false];
+  const delegates: ("GPU" | "CPU")[] =
+    request.delegate === "CPU" ? ["CPU"] : ["GPU", "CPU"];
+
+  let lastError: unknown;
+  for (const useModule of loaderOrder) {
+    for (const delegate of delegates) {
+      try {
+        landmarker = await createLandmarker(request, delegate, useModule);
+        post({ type: "ready", delegate });
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
   }
 
-  landmarker = await createLandmarker(request, "CPU");
-  post({ type: "ready", delegate: "CPU" });
+  throw lastError ?? new Error("pose landmarker could not be created");
 }
 
 self.onmessage = async (event: MessageEvent<PoseWorkerRequest>) => {

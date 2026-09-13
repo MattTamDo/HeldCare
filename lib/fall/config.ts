@@ -42,7 +42,11 @@ export const FALL_CONFIG = {
     targetFps: 12,
     preferWorker: true,
     workerInitTimeoutMs: 20_000,
-    inferenceTimeoutMs: 2_500,
+    /**
+     * Generous because the first few frames pay for GPU graph warm-up. This is
+     * only a guard against a wedged worker, not a performance budget.
+     */
+    inferenceTimeoutMs: 10_000,
   },
 
   mediapipe: {

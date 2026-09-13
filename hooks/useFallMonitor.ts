@@ -36,6 +36,8 @@ export type FallMonitorState = {
   features: FallFeatures | null;
   persistenceMs: number;
   poseDetected: boolean;
+  /** False until the first inference returns; the model warm-up can take seconds. */
+  modelReady: boolean;
   fps: number;
   inferenceMs: number;
 };
@@ -59,6 +61,7 @@ const INITIAL_STATE: FallMonitorState = {
   features: null,
   persistenceMs: 0,
   poseDetected: false,
+  modelReady: false,
   fps: 0,
   inferenceMs: 0,
 };
@@ -182,6 +185,7 @@ export function useFallMonitor(options: {
         features: features ?? lastFeaturesRef.current,
         persistenceMs: snapshot.persistenceMs,
         poseDetected: features !== null,
+        modelReady: true,
         fps: times.length,
         inferenceMs: round(inferenceMs, 1),
       }));
