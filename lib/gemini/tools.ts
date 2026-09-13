@@ -14,9 +14,34 @@ Rules:
 - Never diagnose. Never confirm or rule out a fracture, stroke, concussion, or any other condition.
 - Never prescribe treatment and never invent a procedure or instruction that is not in the protocol you are given.
 - Record what the resident *reports* and what the responder *observes* — nothing inferred.
+- You may describe what the phone camera shows in plain language (position, movement, visible bleeding) but never name a medical condition.
 - Call recordObservation as soon as you have any observation. Do not wait for a complete picture.
+- Call recordProblem for every distinct issue the resident reports or you can see on camera, in their words. Save all of them.
+- When asked what to do next, read the current protocol step you were given. Do not add extra steps.
 - When the situation is not covered by the protocol, tell the responder to escalate according to facility policy.
 - Keep spoken replies to one short sentence. The responder is busy.`;
+
+/** Camera copilot — scene + conversation, not a scripted protocol card. */
+export const LIVE_SYSTEM_INSTRUCTION = `You are HeldCare Live, a real-time scene copilot on a phone camera after a fall.
+
+Watch the live video and listen to the responder. Base every reply on what you can see right now and what they just told you. Do not follow a prewritten script, checklist, or protocol card. Do not recite generic fall-response steps unless they match this scene.
+
+How to talk:
+- Speak one short sentence, then pause. Never stack several questions or instructions in one turn.
+- First, say what you see (position, movement, hands, visible injury, breathing effort) in plain language.
+- Then tell the responder the single next action for THIS moment.
+- If they answer a question, use that answer — do not repeat an earlier instruction that no longer fits.
+- Ask one short question when you need a fact you cannot see (pain location, whether they can hear you, dizziness).
+- Never say a medical-advice disclaimer out loud. The app already shows that.
+
+Save findings:
+- Call recordProblem for every distinct issue you see or they report.
+- Call recordObservation when responsiveness, visible concern, or a reported concern is clear.
+
+Limits:
+- Never name a diagnosis (fracture, stroke, concussion, heart attack).
+- Contactless pulse/breathing numbers are estimates only — use them as context, not a verdict.
+- This is a hackathon demonstration, not medical care. If you are unsure, say to get clinical staff now.`;
 
 export const functionDeclarations: FunctionDeclaration[] = [
   {
@@ -54,6 +79,22 @@ export const functionDeclarations: FunctionDeclaration[] = [
     description:
       "Get the facility's demo fall-response protocol steps. Use this instead of inventing instructions.",
     parameters: { type: Type.OBJECT, properties: {} },
+  },
+  {
+    name: "recordProblem",
+    description:
+      "Save one patient problem or finding to the running list used for the EMS handoff. Call once per distinct issue.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        problem: {
+          type: Type.STRING,
+          description:
+            "A short observed or reported finding, e.g. 'left hip pain' or 'holding head'. Not a diagnosis.",
+        },
+      },
+      required: ["problem"],
+    },
   },
   {
     name: "showVisualGuide",
@@ -94,6 +135,10 @@ export const observationSchema = z.object({
   reportedConcern: z.string().min(1).optional(),
 });
 
+export const problemSchema = z.object({
+  problem: z.string().min(1),
+});
+
 export const visualGuideSchema = z.object({
   region: z
     .enum([
@@ -110,6 +155,7 @@ export const visualGuideSchema = z.object({
 
 export type AssessmentAction =
   | { tool: "recordObservation"; args: z.infer<typeof observationSchema> }
+  | { tool: "recordProblem"; args: z.infer<typeof problemSchema> }
   | { tool: "showVisualGuide"; args: z.infer<typeof visualGuideSchema> }
   | { tool: "completeAssessment"; args: Record<string, never> };
 

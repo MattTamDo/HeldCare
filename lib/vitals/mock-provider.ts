@@ -58,7 +58,7 @@ export class MockVitalsProvider implements VitalsProvider {
           const vitals: Vitals =
             stage === "available"
               ? {
-                  pulse: jitter(78, 4),
+                  pulse: jitter(112, 3),
                   respiration: jitter(16, 2),
                   signalQuality: "GOOD",
                   pressureWaveform: mockPressureWaveform(),

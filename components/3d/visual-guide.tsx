@@ -47,53 +47,53 @@ export default function VisualGuide({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur">
-      <div className="flex items-center justify-between border-b border-edge px-4 py-3">
-        <h2 className="text-xs font-semibold tracking-[0.2em] text-slate-300">
-          VISUAL GUIDE
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs font-semibold text-slate-400 transition hover:text-slate-200"
-        >
-          CLOSE
-        </button>
-      </div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/40 backdrop-blur-sm dark:bg-slate-950/80">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden bg-white dark:bg-slate-950">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <h2 className="text-sm font-bold">Visual guide</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            Close
+          </button>
+        </div>
 
-      <div className="min-h-0 flex-1">
-        <CanvasBoundary>
-          <Mannequin active={region} />
-        </CanvasBoundary>
-      </div>
+        <div className="min-h-0 flex-1 bg-slate-950">
+          <CanvasBoundary>
+            <Mannequin active={region} />
+          </CanvasBoundary>
+        </div>
 
-      <div className="space-y-3 border-t border-edge px-4 py-4">
-        {region ? (
-          <p className="text-sm">
-            <span className="font-semibold text-rose-400">
-              {BODY_REGION_LABELS[region].toUpperCase()}
-            </span>{" "}
-            <span className="text-slate-400">— area the resident reported.</span>
+        <div className="space-y-3 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
+          {region ? (
+            <p className="text-sm">
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                {BODY_REGION_LABELS[region]}
+              </span>{" "}
+              <span className="text-slate-500">— area the resident reported.</span>
+            </p>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No specific area reported. General orientation view.
+            </p>
+          )}
+
+          <p className="text-xs text-slate-500">
+            Drag to rotate, pinch to zoom. Orientation only — follow facility
+            protocol for the reported concern. Left and right follow the
+            resident&apos;s body, not the screen.
           </p>
-        ) : (
-          <p className="text-sm text-slate-400">
-            No specific area reported. General orientation view.
-          </p>
-        )}
 
-        <p className="text-xs text-slate-500">
-          Drag to rotate, pinch to zoom. Orientation only — follow facility
-          protocol for the reported concern. Left and right follow the
-          resident&apos;s body, not the screen.
-        </p>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
-        >
-          DONE
-        </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-900"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

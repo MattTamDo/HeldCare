@@ -43,7 +43,7 @@ export function MonitorShell({
   }, [hrefFor, router]);
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-dvh flex-col">
       <AppHeader
         query={query}
         onQueryChange={setQuery}

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { Card } from "@/components/ui/Card";
+
 export function Panel({
   title,
   action,
@@ -12,15 +14,9 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-edge bg-panel p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold tracking-[0.18em] text-slate-400">
-          {title}
-        </h2>
-        {action}
-      </div>
+    <Card title={title} action={action} bodyClassName="space-y-3 px-4 pb-4">
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -37,18 +33,18 @@ export function Choice({
 }) {
   const selectedClasses =
     tone === "alert"
-      ? "border-rose-400 bg-rose-500/15 text-rose-200"
-      : "border-sky-400 bg-sky-500/15 text-sky-100";
+      ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200"
+      : "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200";
 
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex-1 rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+      className={`min-h-12 flex-1 touch-manipulation rounded-xl border px-3 py-3 text-sm font-semibold ${
         selected
           ? selectedClasses
-          : "border-edge bg-panel-2 text-slate-300 hover:border-slate-500"
+          : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
       }`}
     >
       {children}
@@ -58,13 +54,11 @@ export function Choice({
 
 export function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-edge bg-panel-2 px-3 py-3">
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">
+    <div className="rounded-xl bg-slate-50 px-3 py-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+      <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {label}
       </p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-slate-100">
-        {value}
-      </p>
+      <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

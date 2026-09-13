@@ -107,10 +107,10 @@ export function CameraWall({
           {demoMode && <DebugHud state={selectedState} />}
 
           <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-            Fall scores are a demonstration heuristic, not a medically validated
-            measure. Click any window to make it the main view — the{" "}
-            <span className="font-mono">F</span> key reports a fall for whichever
-            room is showing.
+            Rooms 201–203 take a demo video (upload or drop a file), then
+            Analyse clip to run pose and fall detection. Room 204 is the live
+            camera. The <span className="font-mono">F</span> key reports a fall
+            for the window in view.
           </p>
         </div>
 

@@ -16,13 +16,9 @@ export default function HostCameraBridge({
   void onStream;
 
   return (
-    <div className="rounded-xl border border-edge bg-surface p-3">
-      <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
-        IPHONE PAIRING
-      </p>
-      <p className="mt-2 text-sm text-slate-300">
-        Live phone camera is not enabled in this build.
-      </p>
+    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+      <p className="text-xs font-semibold text-slate-500">iPhone pairing</p>
+      <p className="mt-2 text-sm">Live phone camera is not enabled in this build.</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
         Start the contactless measurement above to use the simulated pulse and
         breathing estimates.

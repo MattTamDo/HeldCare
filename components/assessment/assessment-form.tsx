@@ -37,10 +37,10 @@ export default function AssessmentForm({
   }
 
   return (
-    <Panel title="POST-FALL ASSESSMENT">
+    <Panel title="Post-fall assessment">
       <div className="space-y-5">
         <fieldset>
-          <legend className="mb-2 text-sm font-medium text-slate-200">
+          <legend className="mb-2 text-sm font-medium">
             Is the resident responsive?
           </legend>
           <div className="flex gap-2">
@@ -70,7 +70,7 @@ export default function AssessmentForm({
         </fieldset>
 
         <fieldset>
-          <legend className="mb-2 text-sm font-medium text-slate-200">
+          <legend className="mb-2 text-sm font-medium">
             Visible concern
           </legend>
           <div className="flex gap-2">
@@ -90,7 +90,7 @@ export default function AssessmentForm({
         <div>
           <label
             htmlFor="reported-concern"
-            className="mb-2 block text-sm font-medium text-slate-200"
+            className="mb-2 block text-sm font-medium"
           >
             Reported concern
           </label>
@@ -109,7 +109,7 @@ export default function AssessmentForm({
                 }
               }}
               placeholder="e.g. left hip pain"
-              className="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-3 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-400"
+              className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:border-sky-500 dark:focus:ring-sky-900/40"
             />
             {micSlot}
           </div>

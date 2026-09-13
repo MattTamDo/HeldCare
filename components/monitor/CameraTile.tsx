@@ -125,11 +125,27 @@ export function CameraTile({
     else void frameRef.current?.requestFullscreen?.();
   };
 
+  const openClipPicker = () => fileInputRef.current?.click();
+
+  const takeClipFile = (file?: File) => {
+    if (file?.type.startsWith("video/")) loadFile(file);
+  };
+
   const hide = (visible: boolean) => (visible ? "" : "hidden");
 
   return (
     <section
-      className={`flex flex-col overflow-hidden bg-slate-900 transition ${
+      onDragOver={(event) => {
+        if (isLive) return;
+        event.preventDefault();
+      }}
+      onDrop={(event) => {
+        if (isLive) return;
+        event.preventDefault();
+        event.stopPropagation();
+        takeClipFile(event.dataTransfer.files[0]);
+      }}
+      className={`relative flex flex-col overflow-hidden bg-slate-900 transition ${
         spotlight
           ? `rounded-2xl shadow-sm ring-1 ${isFall ? "ring-2 ring-rose-500" : "ring-slate-200 dark:ring-slate-800"}`
           : `rounded-xl ring-2 ${
@@ -141,6 +157,18 @@ export function CameraTile({
             }`
       } ${className}`}
     >
+      {!isLive ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          className="sr-only"
+          onChange={(event) => {
+            takeClipFile(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+      ) : null}
       {/* Spotlight header */}
       <div
         className={`flex items-center justify-between gap-3 px-4 py-3 ${hide(spotlight)}`}
@@ -205,9 +233,20 @@ export function CameraTile({
                 {isLive
                   ? "Start the camera to monitor this room."
                   : needsClip
-                    ? "Upload a video to analyse it for falls."
+                    ? "Upload an MP4, or drop a file on this window."
                     : "Analyse the clip to run fall detection."}
               </p>
+              {!isLive && needsClip ? (
+                <button
+                  type="button"
+                  onClick={openClipPicker}
+                  className={`mt-2 rounded-full bg-sky-600 px-4 py-2 font-semibold text-white ${
+                    spotlight ? "text-sm" : "text-[10px]"
+                  }`}
+                >
+                  Upload demo video
+                </button>
+              ) : null}
             </div>
           )}
 
@@ -330,13 +369,25 @@ export function CameraTile({
           </button>
         </div>
 
-        {/* Selection hit area, last so it never shifts the video node. */}
+        {/* Selection hit area stays under the upload chip so the file picker works. */}
         <button
           type="button"
           onClick={onSelect}
           aria-label={`View Room ${room.roomId} — ${room.residentName}`}
           className={`absolute inset-0 ${spotlight ? "hidden" : "block"}`}
         />
+        {!isLive && !spotlight ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openClipPicker();
+            }}
+            className="absolute bottom-8 left-2 z-10 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-bold text-white"
+          >
+            {needsClip ? "Upload" : "Change"}
+          </button>
+        ) : null}
       </div>
 
       {/* Spotlight footer */}
@@ -395,22 +446,11 @@ export function CameraTile({
               </button>
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openClipPicker}
                 className={`${BUTTON} bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700`}
               >
                 {clip ? "Change clip" : "Upload clip"}
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) loadFile(file);
-                  event.target.value = "";
-                }}
-              />
             </>
           )}
         </div>

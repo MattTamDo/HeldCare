@@ -14,8 +14,23 @@
   --color-alert: #f43f5e;
 }
 
+html,
+body {
+  min-height: 100dvh;
+  height: auto;
+}
+
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+a,
+button,
+label,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 /* Emergency pulse used only by the confirmed-fall banner. */
@@ -46,3 +61,20 @@ body {
 .animate-dot-pulse {
   animation: carefall-dot-pulse 1.8s ease-in-out infinite;
 }
+
+@keyframes carefall-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-caption-in {
+  animation: carefall-caption-in 0.28s ease-out;
+}
+
+

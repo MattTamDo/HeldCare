@@ -22,7 +22,7 @@ export default function CompletionPanel({
   const ready = canComplete(state);
 
   return (
-    <Panel title="ASSESSMENT READY">
+    <Panel title="Assessment ready">
       <ul className="space-y-1.5">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 text-xs">
@@ -32,12 +32,12 @@ export default function CompletionPanel({
                   ? "text-emerald-400"
                   : item.required
                     ? "text-rose-400"
-                    : "text-slate-600"
+                    : "text-slate-400"
               }
             >
               {item.done ? "✓" : "○"}
             </span>
-            <span className={item.done ? "text-slate-300" : "text-slate-500"}>
+            <span className={item.done ? "" : "text-slate-500"}>
               {item.label}
               {item.required && !item.done ? " (required)" : ""}
             </span>
@@ -49,7 +49,7 @@ export default function CompletionPanel({
         type="button"
         onClick={onComplete}
         disabled={!ready || submitting}
-        className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+        className="mt-4 w-full rounded-2xl bg-emerald-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800"
       >
         {submitting ? "SUBMITTING…" : "COMPLETE ASSESSMENT"}
       </button>
@@ -72,7 +72,7 @@ export default function CompletionPanel({
               </span>
             ) : null}
           </p>
-          <pre className="overflow-x-auto rounded-xl border border-edge bg-panel-2 p-3 text-[11px] leading-relaxed text-slate-300">
+          <pre className="overflow-x-auto rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
             {JSON.stringify(result, null, 2)}
           </pre>
         </div>

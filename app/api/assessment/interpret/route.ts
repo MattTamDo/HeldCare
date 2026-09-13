@@ -9,6 +9,7 @@ import {
   SYSTEM_INSTRUCTION,
   functionDeclarations,
   observationSchema,
+  problemSchema,
   visualGuideSchema,
   type AssessmentAction,
   type InterpretResponse,
@@ -116,6 +117,11 @@ export async function POST(request: Request) {
           const parsed = observationSchema.safeParse(args);
           if (parsed.success && Object.keys(parsed.data).length > 0) {
             actions.push({ tool: "recordObservation", args: parsed.data });
+          }
+        } else if (name === "recordProblem") {
+          const parsed = problemSchema.safeParse(args);
+          if (parsed.success) {
+            actions.push({ tool: "recordProblem", args: parsed.data });
           }
         } else if (name === "showVisualGuide") {
           const parsed = visualGuideSchema.safeParse(args);

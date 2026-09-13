@@ -18,8 +18,8 @@ export default function MicButton({
       aria-label={listening ? "Stop listening" : "Speak"}
       className={`shrink-0 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
         listening
-          ? "border-rose-400 bg-rose-500/20 text-rose-200"
-          : "border-edge bg-panel-2 text-slate-300 hover:border-slate-500"
+          ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200"
+          : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
       } disabled:opacity-40`}
     >
       {listening ? "◼" : "🎤"}

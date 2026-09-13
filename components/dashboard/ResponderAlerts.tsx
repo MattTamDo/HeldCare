@@ -1,23 +1,29 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Card } from "@/components/ui/Card";
 import { CheckIcon, CheckShieldIcon, PhoneIcon } from "@/components/ui/icons";
 import type { useIncidentBoard } from "@/hooks/useIncidentBoard";
+import { responderPath } from "@/lib/assessment/incident";
 
 export function ResponderAlerts({
   board,
 }: {
   board: ReturnType<typeof useIncidentBoard>;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const { activeIncident: incident, activeRoom, board: data } = board;
 
   async function claim(responderId: string) {
+    if (!incident) return;
     setBusy(true);
+    const incidentId = incident.id;
     await board.respond(responderId);
     setBusy(false);
+    router.push(responderPath(incidentId, "copilot", activeRoom?.id));
   }
 
   async function finish() {
@@ -82,16 +88,22 @@ export function ResponderAlerts({
               {incident.responderName} is on the way
             </p>
             <a
-              href={`/responder/incident/${incident.id}/assessment`}
-              className="mx-auto mt-5 flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-7 py-4 text-base font-bold text-white transition hover:bg-sky-500"
+              href={responderPath(incident.id, "assessment", activeRoom?.id)}
+              className="mx-auto mt-5 flex min-h-14 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-sky-600 px-7 py-4 text-base font-bold text-white"
             >
               Open post-fall assessment
+            </a>
+            <a
+              href={responderPath(incident.id, "copilot", activeRoom?.id)}
+              className="mx-auto mt-3 flex min-h-14 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-7 py-4 text-base font-bold text-white"
+            >
+              Open phone copilot
             </a>
             <button
               type="button"
               onClick={finish}
               disabled={busy}
-              className="mx-auto mt-3 flex items-center gap-2 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+              className="mx-auto mt-3 flex min-h-14 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-bold text-white disabled:opacity-50"
             >
               <CheckIcon className="size-5" />
               Mark as resolved
@@ -102,14 +114,14 @@ export function ResponderAlerts({
             <p className="mt-5 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
               Notified — tap to accept
             </p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <div className="mt-3 flex flex-col gap-2">
               {data.responders.map((responder) => (
                 <button
                   key={responder.id}
                   type="button"
-                  onClick={() => claim(responder.id)}
+                  onClick={() => void claim(responder.id)}
                   disabled={busy}
-                  className="flex items-center gap-2 rounded-2xl bg-rose-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-rose-500 disabled:opacity-50"
+                  className="flex min-h-14 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-rose-600 px-5 py-4 text-base font-bold text-white [-webkit-tap-highlight-color:transparent] disabled:opacity-50"
                 >
                   <PhoneIcon className="size-4" />
                   {responder.name}

@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { loadIncident, mockIncident } from "@/lib/assessment/incident";
+import {
+  incidentFromRoom,
+  loadIncident,
+  mockIncident,
+  responderPath,
+} from "@/lib/assessment/incident";
 import {
   applyObservation,
+  applyProblem,
   applyVideoProof,
   applyVitals,
 } from "@/lib/assessment/state";
@@ -28,17 +34,18 @@ import CompletionPanel from "./completion-panel";
 import LivePanel, { type LogEntry } from "./live-panel";
 import MicButton from "./mic-button";
 import ProtocolCard from "./protocol-card";
+import { ResponderChrome } from "./responder-chrome";
 import { Panel } from "./ui";
 import VitalsPanel from "./vitals-panel";
 
 const CONNECTOR_STEPS = [
-  "POST-FALL ASSESSMENT",
-  "HEALTH VITAL",
-  "CAREFALL LIVE",
-  "COMPLETE",
+  { id: "assessment", label: "Post-fall" },
+  { id: "vitals", label: "Health vitals" },
+  { id: "live", label: "Live" },
+  { id: "complete", label: "Complete" },
 ] as const;
 
-type ConnectorStep = (typeof CONNECTOR_STEPS)[number];
+type ConnectorStep = (typeof CONNECTOR_STEPS)[number]["id"];
 
 function formatElapsed(seconds: number): string {
   return seconds < 60
@@ -66,11 +73,16 @@ function useElapsed(from: number): string | undefined {
   return seconds === undefined ? undefined : formatElapsed(seconds);
 }
 
-export default function AssessmentScreen({ incidentId }: { incidentId: string }) {
-  const [incident, setIncident] = useState<AssessmentIncident>({
-    ...mockIncident,
-    id: incidentId,
-  });
+export default function AssessmentScreen({
+  incidentId,
+  roomId,
+}: {
+  incidentId: string;
+  roomId?: string;
+}) {
+  const [incident, setIncident] = useState<AssessmentIncident>(
+    roomId ? incidentFromRoom(incidentId, roomId) : { ...mockIncident, id: incidentId },
+  );
   const [source, setSource] = useState<"api" | "mock">("mock");
   const [state, setState] = useState<AssessmentState>({});
 
@@ -86,7 +98,7 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
   const [result, setResult] = useState<AssessmentResult>();
   const [outcome, setOutcome] = useState<SubmitOutcome>();
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState<ConnectorStep>("POST-FALL ASSESSMENT");
+  const [step, setStep] = useState<ConnectorStep>("assessment");
 
   const logId = useRef(0);
   // Read inside async callbacks so an in-flight request always sees fresh state.
@@ -97,7 +109,7 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
 
   useEffect(() => {
     let cancelled = false;
-    loadIncident(incidentId).then((loaded) => {
+    loadIncident(incidentId, roomId).then((loaded) => {
       if (cancelled) return;
       setIncident(loaded.incident);
       setSource(loaded.source);
@@ -105,7 +117,7 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
     return () => {
       cancelled = true;
     };
-  }, [incidentId]);
+  }, [incidentId, roomId]);
 
   const addLog = useCallback((role: LogEntry["role"], text: string) => {
     logId.current += 1;
@@ -152,6 +164,8 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
       for (const action of response.actions) {
         if (action.tool === "recordObservation") {
           setState((prev) => applyObservation(prev, action.args));
+        } else if (action.tool === "recordProblem") {
+          setState((prev) => applyProblem(prev, action.args.problem));
         } else if (action.tool === "showVisualGuide") {
           setGuideRegion(action.args.region);
           setGuideOpen(true);
@@ -184,77 +198,63 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
   }
 
   function stepIndex(current: ConnectorStep): number {
-    return CONNECTOR_STEPS.indexOf(current);
+    return CONNECTOR_STEPS.findIndex((item) => item.id === current);
   }
 
   function goNext() {
     const index = stepIndex(step);
     const next = CONNECTOR_STEPS[Math.min(index + 1, CONNECTOR_STEPS.length - 1)];
-    setStep(next);
+    setStep(next.id);
   }
 
   function goBack() {
     const index = stepIndex(step);
     const previous = CONNECTOR_STEPS[Math.max(index - 1, 0)];
-    setStep(previous);
+    setStep(previous.id);
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 pb-10 pt-5">
-      <header className="mb-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-sky-400">
-            CAREFALL
-          </p>
-          <p className="text-[11px] text-slate-500">
-            {source === "mock" ? "mock incident" : `incident ${incident.id}`}
-          </p>
+    <ResponderChrome
+      incidentId={incident.id}
+      residentName={incident.resident.name}
+      roomId={incident.roomId}
+      status={
+        sinceDetected
+          ? `Fall detected ${sinceDetected} ago · ${incident.responder.name}`
+          : `${incident.responder.name}, ${incident.responder.role}`
+      }
+      active="assessment"
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-1">
+          {CONNECTOR_STEPS.map((item, index) => {
+            const active = item.id === step;
+            const complete = stepIndex(step) > index;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStep(item.id)}
+                className={`min-h-11 touch-manipulation rounded-full px-4 py-2 text-sm font-semibold ${
+                  active
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                    : complete
+                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
+                      : "text-slate-500 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+          {source === "mock" ? (
+            <span className="ml-auto self-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30">
+              Demo
+            </span>
+          ) : null}
         </div>
-        <h1 className="mt-1 text-2xl font-semibold leading-tight">
-          {incident.resident.name}
-        </h1>
-        <p className="mt-0.5 text-sm text-slate-400">
-          Room {incident.roomId} · Responder {incident.responder.name},{" "}
-          {incident.responder.role}
-        </p>
-        <p className="mt-0.5 text-xs tabular-nums text-slate-500">
-          {sinceDetected ? `Fall detected ${sinceDetected} ago` : " "}
-        </p>
-      </header>
 
-      <div className="space-y-3">
-        <section className="rounded-2xl border border-edge bg-panel p-3">
-          <p className="mb-3 text-[11px] font-semibold tracking-[0.18em] text-slate-400">
-            TYPEFORM CONNECTOR
-          </p>
-          <div className="grid grid-cols-4 gap-1.5">
-            {CONNECTOR_STEPS.map((item, index) => {
-              const active = item === step;
-              const complete = stepIndex(step) > index;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setStep(item)}
-                  className={`rounded-lg border px-2 py-2 text-[10px] font-semibold leading-tight transition ${
-                    active
-                      ? "border-sky-400 bg-sky-500/15 text-sky-100"
-                      : complete
-                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                        : "border-edge bg-panel-2 text-slate-500 hover:border-slate-500"
-                  }`}
-                >
-                  <span className="block text-[9px] text-slate-500">
-                    {index + 1}
-                  </span>
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {step === "POST-FALL ASSESSMENT" ? (
+        {step === "assessment" ? (
           <>
             <ProtocolCard state={state} />
             <AssessmentForm
@@ -271,12 +271,27 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
           </>
         ) : null}
 
-        {step === "HEALTH VITAL" ? (
+        {step === "vitals" ? (
           <VitalsPanel onVitals={handleVitals} onVideoProof={handleVideoProof} />
         ) : null}
 
-        {step === "CAREFALL LIVE" ? (
+        {step === "live" ? (
           <>
+            <a
+              href={responderPath(incident.id, "copilot", incident.roomId)}
+              className="block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+            >
+              <div className="relative aspect-video bg-slate-900">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <p className="absolute top-3 left-3 flex items-center gap-2 text-xs font-semibold text-white">
+                  <span className="size-2 animate-dot-pulse rounded-full bg-rose-500" />
+                  Live copilot
+                </p>
+              </div>
+              <p className="px-4 py-3 text-sm font-semibold">
+                Open phone camera copilot
+              </p>
+            </a>
             <LivePanel
               listening={speech.listening}
               supported={speech.supported}
@@ -289,8 +304,8 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
               onSubmitText={handleUtterance}
             />
 
-            <Panel title="VISUAL GUIDE">
-              <p className="text-xs text-slate-400">
+            <Panel title="Visual guide">
+              <p className="text-xs text-slate-500">
                 {state.bodyRegion
                   ? "A reported area is available to show in 3D."
                   : "No specific area reported yet — opens a general view."}
@@ -298,15 +313,15 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
               <button
                 type="button"
                 onClick={openGuide}
-                className="mt-3 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+                className="mt-3 w-full rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-900"
               >
-                SHOW VISUAL GUIDE
+                Show visual guide
               </button>
             </Panel>
           </>
         ) : null}
 
-        {step === "COMPLETE" ? (
+        {step === "complete" ? (
           <CompletionPanel
             state={state}
             result={result}
@@ -320,18 +335,18 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
           <button
             type="button"
             onClick={goBack}
-            disabled={step === CONNECTOR_STEPS[0]}
-            className="rounded-xl border border-edge bg-panel-2 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-500 disabled:opacity-40"
+            disabled={step === CONNECTOR_STEPS[0].id}
+            className="min-h-12 touch-manipulation rounded-full bg-white px-4 py-3 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 disabled:opacity-40 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800"
           >
-            BACK
+            Back
           </button>
           <button
             type="button"
             onClick={goNext}
-            disabled={step === CONNECTOR_STEPS[CONNECTOR_STEPS.length - 1]}
-            className="rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400"
+            disabled={step === CONNECTOR_STEPS[CONNECTOR_STEPS.length - 1].id}
+            className="min-h-12 touch-manipulation rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400 dark:bg-white dark:text-slate-900 dark:disabled:bg-slate-800"
           >
-            NEXT
+            Next
           </button>
         </div>
       </div>
@@ -339,6 +354,6 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
       {guideOpen ? (
         <VisualGuide region={guideRegion} onClose={closeGuide} />
       ) : null}
-    </main>
+    </ResponderChrome>
   );
 }

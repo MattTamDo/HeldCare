@@ -36,7 +36,11 @@ export function applyObservation(
     merged.guidanceViewed = observation.guidanceViewed;
   }
 
-  return derive(merged);
+  return derive(withDerivedProblems(merged));
+}
+
+export function applyProblem(state: AssessmentState, problem: string): AssessmentState {
+  return derive(withDerivedProblems(addProblem(state, problem)));
 }
 
 export function applyVitals(state: AssessmentState, vitals: Vitals): AssessmentState {
@@ -48,6 +52,29 @@ export function applyVideoProof(
   videoProof: VideoProof,
 ): AssessmentState {
   return derive({ ...state, videoProof });
+}
+
+function addProblem(state: AssessmentState, problem: string): AssessmentState {
+  const text = problem.trim();
+  if (!text) return state;
+  const problems = state.problems ?? [];
+  if (problems.some((item) => item.toLowerCase() === text.toLowerCase())) {
+    return state;
+  }
+  return { ...state, problems: [...problems, text] };
+}
+
+function withDerivedProblems(state: AssessmentState): AssessmentState {
+  let next = state;
+  if (state.responsive === false) next = addProblem(next, "Resident is unresponsive");
+  if (state.visibleConcern === "bleeding") next = addProblem(next, "Visible bleeding");
+  if (state.visibleConcern === "other") next = addProblem(next, "Other visible concern");
+  if (state.reportedConcern) next = addProblem(next, state.reportedConcern);
+  return next;
+}
+
+export function collectProblems(state: AssessmentState): string[] {
+  return withDerivedProblems(state).problems ?? [];
 }
 
 function derive(state: AssessmentState): AssessmentState {

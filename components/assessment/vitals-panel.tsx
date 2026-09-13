@@ -86,7 +86,7 @@ function PressureSparkline({ values }: { values?: number[] }) {
   const height = 64;
 
   if (points.length === 0) {
-    return <div className="mt-3 h-16 rounded-lg border border-edge bg-surface" />;
+    return <div className="mt-3 h-16 rounded-lg bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700" />;
   }
 
   const min = Math.min(...points);
@@ -105,7 +105,7 @@ function PressureSparkline({ values }: { values?: number[] }) {
       role="img"
       aria-label="Relative arterial pressure waveform"
       viewBox={`0 0 ${width} ${height}`}
-      className="mt-3 h-16 w-full rounded-lg border border-edge bg-surface"
+      className="mt-3 h-16 w-full rounded-lg bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
       preserveAspectRatio="none"
     >
       <path d={path} fill="none" stroke="#38bdf8" strokeWidth="2" />
@@ -175,7 +175,7 @@ function PresageConnectionBar({
                 : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.55)]"
             }`}
           />
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-300">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-500">
             PRESAGE CONNECTION
           </p>
         </div>
@@ -233,30 +233,30 @@ function RecordedMetrics({ vitals }: { vitals: Vitals }) {
   ];
 
   return (
-    <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
+    <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
+        <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-500">
           RECORDED METRICS
         </h3>
         <span className="text-xs text-slate-500">
           {records.filter((record) => record.recorded).length}/{records.length}
         </span>
       </div>
-      <div className="divide-y divide-edge overflow-hidden rounded-lg border border-edge">
+      <div className="divide-y divide-slate-200 overflow-hidden rounded-lg ring-1 ring-slate-200 dark:divide-slate-700 dark:ring-slate-700">
         {records.map((record) => (
           <div
             key={record.label}
-            className="grid grid-cols-[1fr_auto] items-center gap-3 bg-surface px-3 py-2"
+            className="grid grid-cols-[1fr_auto] items-center gap-3 bg-white px-3 py-2 dark:bg-slate-900"
           >
             <div className="flex min-w-0 items-center gap-2">
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
-                  record.recorded ? "bg-emerald-400" : "bg-slate-600"
+                  record.recorded ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
                 }`}
               />
-              <p className="truncate text-xs text-slate-400">{record.label}</p>
+              <p className="truncate text-xs text-slate-500">{record.label}</p>
             </div>
-            <p className="text-right text-xs font-semibold tabular-nums text-slate-200">
+            <p className="text-right text-xs font-semibold tabular-nums">
               {record.value}
             </p>
           </div>
@@ -289,12 +289,12 @@ function WarningList({
 
   return (
     <div className="mb-3 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2">
-      <p className="text-[11px] font-semibold tracking-[0.16em] text-amber-200">
+      <p className="text-[11px] font-semibold tracking-[0.16em] text-amber-800 dark:text-amber-200">
         CAPTURE WARNING
       </p>
       <ul className="mt-1 space-y-1">
         {warnings.map((warning) => (
-          <li key={warning} className="text-xs leading-snug text-amber-100">
+          <li key={warning} className="text-xs leading-snug text-amber-800 dark:text-amber-100">
             {warning}
           </li>
         ))}
@@ -315,12 +315,12 @@ function RunMetric({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-edge bg-panel-2 px-3 py-3">
+    <div className="rounded-xl bg-slate-50 px-3 py-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">
           {label}
         </p>
-        <p className="text-lg font-semibold tabular-nums text-slate-100">
+        <p className="text-lg font-semibold tabular-nums">
           {value}
           {unit ? (
             <span className="ml-1 text-[11px] font-medium text-slate-500">
@@ -762,9 +762,9 @@ export default function VitalsPanel({
 
   return (
     <Panel
-      title="CONTACTLESS MEASUREMENT"
+      title="Contactless measurement"
       action={
-        <span className="rounded-full border border-edge px-2 py-0.5 text-[10px] font-semibold tracking-wider text-slate-500">
+        <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
           {mode.toUpperCase()}
         </span>
       }
@@ -772,13 +772,13 @@ export default function VitalsPanel({
       <PresageConnectionBar config={runtime} snapshot={snapshot} />
       <video ref={motionVideoRef} muted playsInline className="hidden" />
 
-      <p className="mb-3 text-sm text-slate-400">
+      <p className="mb-3 text-sm text-slate-500">
         {snapshot.stage === "error"
           ? (snapshot.error ?? STAGE_LABELS.error)
           : STAGE_LABELS[snapshot.stage]}
       </p>
       {snapshot.validationHint && snapshot.stage !== "error" ? (
-        <p className="mb-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <p className="mb-3 rounded-xl border border-amber-400/25 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-100">
           {snapshot.validationHint}
         </p>
       ) : null}
@@ -830,11 +830,11 @@ export default function VitalsPanel({
         />
       </div>
 
-      <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
-        <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
+      <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+        <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-500">
           RUN MODE
         </h3>
-        <p className="mt-2 text-sm font-semibold text-slate-200">
+        <p className="mt-2 text-sm font-semibold">
           {runModeLabel(snapshot, runtime)}
         </p>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -850,9 +850,9 @@ export default function VitalsPanel({
         ) : null}
       </div>
 
-      <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
+      <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
+          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-500">
             RELATIVE ARTERIAL PRESSURE
           </h3>
           <span className="text-xs tabular-nums text-slate-500">
@@ -864,21 +864,21 @@ export default function VitalsPanel({
 
       <RecordedMetrics vitals={snapshot.vitals} />
 
-      <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
+      <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400">
+            <h3 className="text-[11px] font-semibold tracking-[0.16em] text-slate-500">
               VIDEO PROOF
             </h3>
             <p className="mt-1 text-xs text-slate-500">{videoProofStatus}</p>
           </div>
           <span
-            className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${
+            className={`rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ${
               recordingProof
-                ? "border-rose-400/40 text-rose-200"
+                ? "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-200"
                 : videoProof
-                  ? "border-emerald-400/40 text-emerald-200"
-                  : "border-edge text-slate-500"
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200"
+                  : "text-slate-500 ring-slate-200 dark:ring-slate-600"
             }`}
           >
             {recordingProof ? "REC" : videoProof ? "SAVED" : "READY"}
@@ -889,7 +889,7 @@ export default function VitalsPanel({
             type="button"
             onClick={recordingProof ? stopVideoProof : startVideoProof}
             disabled={!cameraStream && !recordingProof}
-            className="rounded-lg border border-sky-400/40 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:bg-sky-500/15 disabled:border-edge disabled:text-slate-600"
+            className="rounded-full bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-100 disabled:opacity-40 dark:bg-sky-500/10 dark:text-sky-200 dark:ring-sky-500/30"
           >
             {recordingProof ? "STOP PROOF" : "RECORD PROOF"}
           </button>
@@ -897,7 +897,7 @@ export default function VitalsPanel({
             <a
               href={videoProof.url}
               download={videoProof.fileName}
-              className="rounded-lg border border-emerald-400/40 px-3 py-2 text-center text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15"
+              className="rounded-full bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30"
             >
               DOWNLOAD
             </a>
@@ -905,7 +905,7 @@ export default function VitalsPanel({
             <button
               type="button"
               disabled
-              className="rounded-lg border border-edge px-3 py-2 text-xs font-semibold text-slate-600"
+              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-400 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700"
             >
               DOWNLOAD
             </button>
@@ -923,7 +923,7 @@ export default function VitalsPanel({
         type="button"
         onClick={handleStart}
         disabled={running}
-        className="mt-3 w-full rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/25 disabled:opacity-50"
+        className="mt-3 w-full rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-slate-900"
       >
         {cameraSource === "bridge"
           ? done
@@ -944,16 +944,16 @@ export default function VitalsPanel({
         </p>
       ) : null}
 
-      <div className="mt-3 rounded-xl border border-edge bg-panel-2 p-3">
+      <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
         <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setCameraSource("laptop")}
             aria-pressed={cameraSource === "laptop"}
-            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
               cameraSource === "laptop"
-                ? "border-sky-400 bg-sky-500/15 text-sky-100"
-                : "border-edge bg-surface text-slate-400 hover:border-slate-500"
+                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                : "bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-700"
             }`}
           >
             USE LAPTOP CAMERA
@@ -962,10 +962,10 @@ export default function VitalsPanel({
             type="button"
             onClick={() => setCameraSource("phone")}
             aria-pressed={cameraSource === "phone"}
-            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
               cameraSource === "phone"
-                ? "border-sky-400 bg-sky-500/15 text-sky-100"
-                : "border-edge bg-surface text-slate-400 hover:border-slate-500"
+                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                : "bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-700"
             }`}
           >
             USE PHONE CAMERA
@@ -980,10 +980,10 @@ export default function VitalsPanel({
               setCameraSource("bridge");
             }}
             aria-pressed={cameraSource === "bridge"}
-            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
               cameraSource === "bridge"
-                ? "border-emerald-400 bg-emerald-500/15 text-emerald-100"
-                : "border-edge bg-surface text-slate-400 hover:border-slate-500"
+                ? "bg-emerald-600 text-white"
+                : "bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-700"
             }`}
           >
             USE SMARTSPECTRA BRIDGE
@@ -997,14 +997,14 @@ export default function VitalsPanel({
               autoPlay
               playsInline
               muted
-              className="aspect-video w-full rounded-lg border border-edge bg-black object-cover"
+              className="aspect-video w-full rounded-xl bg-black object-cover ring-1 ring-slate-200 dark:ring-slate-700"
             />
             <div className="mt-3 flex items-center justify-between gap-3">
               <p className="text-xs text-slate-500">{laptopCameraStatus}</p>
               <button
                 type="button"
                 onClick={startLaptopCamera}
-                className="shrink-0 rounded-lg border border-sky-400/40 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:bg-sky-500/15"
+                className="shrink-0 rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white dark:bg-white dark:text-slate-900"
               >
                 START CAMERA
               </button>
@@ -1032,12 +1032,12 @@ export default function VitalsPanel({
           <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold tracking-[0.16em] text-emerald-200">
+                <p className="text-[11px] font-semibold tracking-[0.16em] text-emerald-800 dark:text-emerald-200">
                   SMARTSPECTRA NODE BRIDGE
                 </p>
-                <p className="mt-1 text-xs text-slate-400">{bridgeStatus}</p>
+                <p className="mt-1 text-xs text-slate-500">{bridgeStatus}</p>
               </div>
-              <span className="rounded-full border border-emerald-400/30 px-2 py-1 text-xs font-semibold text-emerald-100">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30">
                 {bridgePackets || packets} packets
               </span>
             </div>
@@ -1046,21 +1046,21 @@ export default function VitalsPanel({
               <input
                 value={bridgeSessionId}
                 onChange={(event) => setBridgeSessionId(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm font-semibold text-slate-100 outline-none focus:border-emerald-400/70"
+                className="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
             <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
               Run this in a separate terminal without opening the browser laptop
               camera:
               <br />
-              <code className="text-emerald-100">
+              <code className="text-emerald-700 dark:text-emerald-200">
                 SMARTSPECTRA_BRIDGE_SESSION_ID={bridgeSessionId || "mac-camera"} npm run presage:camera-bridge
               </code>
             </p>
           </div>
         )}
 
-        <div className="mt-3 overflow-hidden rounded-lg border border-edge">
+        <div className="mt-3 overflow-hidden rounded-lg ring-1 ring-slate-200 dark:ring-slate-700">
           {[
             ["Mac built-in camera", "1280 x 720 on older Macs, 1920 x 1080 on newer Macs"],
             ["iPhone front camera", "Often 1920 x 1080 video; photos around 4032 x 3024"],
@@ -1068,9 +1068,9 @@ export default function VitalsPanel({
           ].map(([device, resolution]) => (
             <div
               key={device}
-              className="grid grid-cols-[0.9fr_1.1fr] border-b border-edge last:border-b-0"
+              className="grid grid-cols-[0.9fr_1.1fr] border-b border-slate-200 last:border-b-0 dark:border-slate-700"
             >
-              <div className="bg-surface px-3 py-2 text-[11px] font-semibold text-slate-400">
+              <div className="bg-white px-3 py-2 text-[11px] font-semibold text-slate-500 dark:bg-slate-900">
                 {device}
               </div>
               <div className="px-3 py-2 text-[11px] leading-snug text-slate-500">

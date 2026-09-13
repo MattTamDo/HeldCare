@@ -1,6 +1,6 @@
-import AssessmentScreen from "@/components/assessment/assessment-screen";
+import PhoneCopilotScreen from "@/components/assessment/phone-copilot-screen";
 
-export default async function AssessmentPage({
+export default async function CopilotPage({
   params,
   searchParams,
 }: {
@@ -10,5 +10,5 @@ export default async function AssessmentPage({
   const { id } = await params;
   const query = await searchParams;
   const room = Array.isArray(query.room) ? query.room[0] : query.room;
-  return <AssessmentScreen incidentId={id} roomId={room} />;
+  return <PhoneCopilotScreen incidentId={id} roomId={room} />;
 }

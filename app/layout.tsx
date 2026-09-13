@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
@@ -18,12 +18,6 @@ export const metadata: Metadata = {
   description: "Senior-living emergency-response system",
 };
 
-// The post-fall assessment screen is used one-handed on a phone.
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-};
-
 /** Applies the saved theme before first paint so the page never flashes. */
 const THEME_SCRIPT = `
 try {
@@ -41,12 +35,12 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="flex min-h-full flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <body className="bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {children}
       </body>
     </html>

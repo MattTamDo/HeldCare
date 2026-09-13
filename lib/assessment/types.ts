@@ -76,6 +76,7 @@ export type AssessmentState = {
   responsive?: boolean;
   visibleConcern?: VisibleConcern;
   reportedConcern?: string;
+  problems?: string[];
   vitals?: Vitals;
   protocolStep?: string;
   visualKey?: string;
@@ -91,6 +92,7 @@ export type AssessmentResult = {
   responsive?: boolean;
   reportedConcern?: string;
   visibleConcern?: string;
+  problems?: string[];
   vitals?: AssessmentResultVitals;
   videoProof?: VideoProof;
   completedAt: number;
@@ -133,6 +135,7 @@ export function buildAssessmentResult(
     responsive: state.responsive,
     reportedConcern: state.reportedConcern,
     visibleConcern: state.visibleConcern,
+    problems: state.problems,
     vitals,
     videoProof: state.videoProof,
     completedAt: Date.now(),
