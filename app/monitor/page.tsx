@@ -6,5 +6,9 @@ export default async function MonitorPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  return <CameraWall demoMode={query.demo === "true"} />;
+  return (
+    <div className="flex flex-1 flex-col bg-slate-950 text-slate-100">
+      <CameraWall demoMode={query.demo === "true"} />
+    </div>
+  );
 }

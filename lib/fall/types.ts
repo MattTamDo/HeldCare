@@ -1,29 +1,20 @@
 /**
  * Shared types for the CareFall fall-detection module.
  *
- * `FallEvent` / `FallEvidence` are the team-wide contract consumed by Person 2.
- * Everything else is internal to this module.
+ * `FallEvent` / `FallEvidence` are the team-wide contract consumed by the
+ * incident module. Everything else is internal to this module.
  */
 
+import type { FallEvent } from "../types/incident";
+
 // ---------------------------------------------------------------------------
-// Team contract — do not change without coordinating with Person 2
+// Team contract — owned by the incident module, re-exported here so the
+// detector and `/api/incidents/fall` can never drift apart.
 // ---------------------------------------------------------------------------
 
-export type FallEvidence = {
-  torsoAngle?: number;
-  hipVelocity?: number;
-  aspectRatio?: number;
-  persistenceMs?: number;
-};
+export type { FallEvent };
 
-export type FallEvent = {
-  type: "FALL_DETECTED";
-  roomId: string;
-  residentId: string;
-  timestamp: number;
-  confidence: number;
-  evidence?: FallEvidence;
-};
+export type FallEvidence = NonNullable<FallEvent["evidence"]>;
 
 /** How a confirmed fall reached `reportFall`. */
 export type FallTrigger = "detector" | "manual";

@@ -3,6 +3,8 @@
  * hard-coded across the pipeline. Tune during staged-fall testing.
  */
 
+import { RESIDENT_BY_ROOM } from "../mock/data";
+
 export type MonitoredRoom = {
   roomId: string;
   residentId: string;
@@ -11,35 +13,21 @@ export type MonitoredRoom = {
 };
 
 /**
- * Minimal local directory so the camera pages can render names. The
- * authoritative facility directory belongs to Person 2's incident module.
+ * Derived from the incident module's facility directory so a camera tile and
+ * its dashboard card always name the same resident. Every monitored room is on
+ * floor 2 in this demo.
  */
-export const ROOM_DIRECTORY: Record<string, MonitoredRoom> = {
-  "201": {
-    roomId: "201",
-    residentId: "harold",
-    residentName: "Harold Jenkins",
-    floor: 2,
-  },
-  "202": {
-    roomId: "202",
-    residentId: "doris",
-    residentName: "Doris Whitfield",
-    floor: 2,
-  },
-  "203": {
-    roomId: "203",
-    residentId: "ernest",
-    residentName: "Ernest Caldwell",
-    floor: 2,
-  },
-  "204": {
-    roomId: "204",
-    residentId: "margaret",
-    residentName: "Margaret Davis",
-    floor: 2,
-  },
-};
+export const ROOM_DIRECTORY: Record<string, MonitoredRoom> = Object.fromEntries(
+  Object.entries(RESIDENT_BY_ROOM).map(([roomId, resident]) => [
+    roomId,
+    {
+      roomId,
+      residentId: resident.id,
+      residentName: resident.name,
+      floor: 2,
+    },
+  ]),
+);
 
 export type CameraSourceKind = "live" | "video";
 
@@ -194,9 +182,10 @@ export const FALL_CONFIG = {
 
   reporting: {
     /**
-     * Person 2 sets this to `/api/incidents/fall`. Empty means log-only.
+     * The incident module lives in this same app, so confirmed falls post to
+     * its route by default. Set the env var to "" to run the camera log-only.
      */
-    endpoint: process.env.NEXT_PUBLIC_FALL_ENDPOINT ?? "",
+    endpoint: process.env.NEXT_PUBLIC_FALL_ENDPOINT ?? "/api/incidents/fall",
     /** Safety net against any duplicate report slipping through. */
     dedupeWindowMs: 4_000,
   },

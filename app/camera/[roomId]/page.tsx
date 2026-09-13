@@ -9,5 +9,9 @@ export default async function RoomCameraPage({
 }) {
   const [{ roomId }, query] = await Promise.all([params, searchParams]);
 
-  return <SingleRoomMonitor roomId={roomId} demoMode={query.demo === "true"} />;
+  return (
+    <div className="flex flex-1 flex-col bg-slate-950 text-slate-100">
+      <SingleRoomMonitor roomId={roomId} demoMode={query.demo === "true"} />
+    </div>
+  );
 }

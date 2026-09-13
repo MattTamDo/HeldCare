@@ -4,11 +4,15 @@ Senior-living emergency-response system — hackathon project (3-person team).
 
 ## Modules
 
-| Module | Owner | Route |
-|--------|-------|-------|
-| Fall Detection | Person 1 | `/camera/204` |
-| Incident Response | Person 2 | `/dashboard`, `/responder` |
-| Post-Fall Assessment | Person 3 | `/responder/incident/:id/assessment` |
+| Module | Owner | Route | Status |
+|--------|-------|-------|--------|
+| Fall Detection | Person 1 | `/monitor`, `/camera/204` | Integrated |
+| Incident Response | Person 2 | `/dashboard`, `/responder` | Integrated |
+| Post-Fall Assessment | Person 3 | `/responder/incident/:id/assessment` | Not merged yet |
+
+A confirmed fall POSTs the shared `FallEvent` to `/api/incidents/fall`, which opens
+an alert and pushes it to `/dashboard` over SSE. `FallEvent` is declared once, in
+[`lib/types/incident.ts`](./lib/types/incident.ts), and re-exported by `lib/fall/types.ts`.
 
 ## Plan
 
@@ -28,8 +32,11 @@ Module specs:
 
 ```bash
 npm install     # also copies the MediaPipe WASM runtime into public/
-npm run dev     # http://localhost:3000/camera/204
+npm run dev     # http://localhost:3000
 ```
+
+End-to-end demo: open `/monitor` in one window and `/dashboard?demo=true` in another.
+Stage a fall (or press **`F`**) and the matching room card turns red in real time.
 
 Requires Chrome and a webcam. The pose model (`public/models/pose_landmarker_lite.task`)
 and the WASM runtime are served locally, so the camera page works offline.
@@ -43,8 +50,8 @@ and the WASM runtime are served locally, so the camera page works offline.
 
 ### Fall detection module (Person 1)
 
-- Page: `/camera/204` (add `?demo=true` to flag a judge run)
+- `/monitor` — four-window camera wall: three uploadable clips plus the live camera
+- `/camera/204` — single room with the full detector HUD (add `?demo=true` for a judge run)
 - Press **`F`** to emit a fall event manually — same `reportFall()` path as the detector
 - Detection logic lives in `lib/fall/`; nothing fall-related sits inside a component
-- To send events to Person 2's API, set `NEXT_PUBLIC_FALL_ENDPOINT=/api/incidents/fall`;
-  until then `reportFall()` logs to the console
+- Set `NEXT_PUBLIC_FALL_ENDPOINT=""` to run the cameras log-only, without raising incidents
