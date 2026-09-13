@@ -3,9 +3,10 @@ import type { AssessmentState, Vitals, VisibleConcern } from "./types";
 import { selectStep } from "@/lib/protocol";
 
 export type Observation = {
-  responsive?: boolean;
+  responsive?: boolean | null;
   visibleConcern?: VisibleConcern;
   reportedConcern?: string;
+  guidanceViewed?: boolean;
 };
 
 /**
@@ -22,13 +23,17 @@ export function applyObservation(
   const merged: AssessmentState = { ...state };
 
   if (observation.responsive !== undefined) {
-    merged.responsive = observation.responsive;
+    if (observation.responsive === null) delete merged.responsive;
+    else merged.responsive = observation.responsive;
   }
   if (observation.visibleConcern !== undefined) {
     merged.visibleConcern = observation.visibleConcern;
   }
   if (observation.reportedConcern !== undefined) {
     merged.reportedConcern = observation.reportedConcern;
+  }
+  if (observation.guidanceViewed !== undefined) {
+    merged.guidanceViewed = observation.guidanceViewed;
   }
 
   return derive(merged);
@@ -72,6 +77,12 @@ export function readiness(state: AssessmentState) {
       id: "vitals",
       label: "Contactless measurement taken",
       done: Boolean(state.vitals?.pulse),
+      required: false,
+    },
+    {
+      id: "guidance",
+      label: "Guidance viewed",
+      done: Boolean(state.guidanceViewed),
       required: false,
     },
   ];

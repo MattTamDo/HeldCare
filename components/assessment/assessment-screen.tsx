@@ -26,6 +26,15 @@ import ProtocolCard from "./protocol-card";
 import { Panel } from "./ui";
 import VitalsPanel from "./vitals-panel";
 
+const CONNECTOR_STEPS = [
+  "POST-FALL ASSESSMENT",
+  "HEALTH VITAL",
+  "CAREFALL LIVE",
+  "COMPLETE",
+] as const;
+
+type ConnectorStep = (typeof CONNECTOR_STEPS)[number];
+
 function formatElapsed(seconds: number): string {
   return seconds < 60
     ? `${seconds}s`
@@ -72,6 +81,7 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
   const [result, setResult] = useState<AssessmentResult>();
   const [outcome, setOutcome] = useState<SubmitOutcome>();
   const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<ConnectorStep>("POST-FALL ASSESSMENT");
 
   const logId = useRef(0);
   // Read inside async callbacks so an in-flight request always sees fresh state.
@@ -159,6 +169,27 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
     setGuideOpen(true);
   }
 
+  function closeGuide() {
+    setGuideOpen(false);
+    handleObservation({ guidanceViewed: true });
+  }
+
+  function stepIndex(current: ConnectorStep): number {
+    return CONNECTOR_STEPS.indexOf(current);
+  }
+
+  function goNext() {
+    const index = stepIndex(step);
+    const next = CONNECTOR_STEPS[Math.min(index + 1, CONNECTOR_STEPS.length - 1)];
+    setStep(next);
+  }
+
+  function goBack() {
+    const index = stepIndex(step);
+    const previous = CONNECTOR_STEPS[Math.max(index - 1, 0)];
+    setStep(previous);
+  }
+
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-10 pt-5">
       <header className="mb-4">
@@ -183,60 +214,119 @@ export default function AssessmentScreen({ incidentId }: { incidentId: string })
       </header>
 
       <div className="space-y-3">
-        <ProtocolCard state={state} />
+        <section className="rounded-2xl border border-edge bg-panel p-3">
+          <p className="mb-3 text-[11px] font-semibold tracking-[0.18em] text-slate-400">
+            TYPEFORM CONNECTOR
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {CONNECTOR_STEPS.map((item, index) => {
+              const active = item === step;
+              const complete = stepIndex(step) > index;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setStep(item)}
+                  className={`rounded-lg border px-2 py-2 text-[10px] font-semibold leading-tight transition ${
+                    active
+                      ? "border-sky-400 bg-sky-500/15 text-sky-100"
+                      : complete
+                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                        : "border-edge bg-panel-2 text-slate-500 hover:border-slate-500"
+                  }`}
+                >
+                  <span className="block text-[9px] text-slate-500">
+                    {index + 1}
+                  </span>
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-        <AssessmentForm
-          state={state}
-          onObservation={handleObservation}
-          micSlot={
-            <MicButton
+        {step === "POST-FALL ASSESSMENT" ? (
+          <>
+            <ProtocolCard state={state} />
+            <AssessmentForm
+              state={state}
+              onObservation={handleObservation}
+              micSlot={
+                <MicButton
+                  listening={speech.listening}
+                  supported={speech.supported}
+                  onToggle={toggleMic}
+                />
+              }
+            />
+          </>
+        ) : null}
+
+        {step === "HEALTH VITAL" ? <VitalsPanel onVitals={handleVitals} /> : null}
+
+        {step === "CAREFALL LIVE" ? (
+          <>
+            <LivePanel
               listening={speech.listening}
               supported={speech.supported}
-              onToggle={toggleMic}
+              interim={speech.interim}
+              error={speech.error}
+              note={note}
+              thinking={thinking}
+              log={log}
+              onToggleMic={toggleMic}
+              onSubmitText={handleUtterance}
             />
-          }
-        />
 
-        <VitalsPanel onVitals={handleVitals} />
+            <Panel title="VISUAL GUIDE">
+              <p className="text-xs text-slate-400">
+                {state.bodyRegion
+                  ? "A reported area is available to show in 3D."
+                  : "No specific area reported yet — opens a general view."}
+              </p>
+              <button
+                type="button"
+                onClick={openGuide}
+                className="mt-3 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+              >
+                SHOW VISUAL GUIDE
+              </button>
+            </Panel>
+          </>
+        ) : null}
 
-        <LivePanel
-          listening={speech.listening}
-          supported={speech.supported}
-          interim={speech.interim}
-          error={speech.error}
-          note={note}
-          thinking={thinking}
-          log={log}
-          onToggleMic={toggleMic}
-          onSubmitText={handleUtterance}
-        />
+        {step === "COMPLETE" ? (
+          <CompletionPanel
+            state={state}
+            result={result}
+            outcome={outcome}
+            submitting={submitting}
+            onComplete={handleComplete}
+          />
+        ) : null}
 
-        <Panel title="VISUAL GUIDE">
-          <p className="text-xs text-slate-400">
-            {state.bodyRegion
-              ? "A reported area is available to show in 3D."
-              : "No specific area reported yet — opens a general view."}
-          </p>
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={openGuide}
-            className="mt-3 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+            onClick={goBack}
+            disabled={step === CONNECTOR_STEPS[0]}
+            className="rounded-xl border border-edge bg-panel-2 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-500 disabled:opacity-40"
           >
-            SHOW VISUAL GUIDE
+            BACK
           </button>
-        </Panel>
-
-        <CompletionPanel
-          state={state}
-          result={result}
-          outcome={outcome}
-          submitting={submitting}
-          onComplete={handleComplete}
-        />
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={step === CONNECTOR_STEPS[CONNECTOR_STEPS.length - 1]}
+            className="rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400"
+          >
+            NEXT
+          </button>
+        </div>
       </div>
 
       {guideOpen ? (
-        <VisualGuide region={guideRegion} onClose={() => setGuideOpen(false)} />
+        <VisualGuide region={guideRegion} onClose={closeGuide} />
       ) : null}
     </main>
   );

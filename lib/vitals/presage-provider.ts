@@ -30,8 +30,12 @@ export class PresageVitalsProvider implements VitalsProvider {
     return () => this.listeners.delete(listener);
   }
 
-  private emit(stage: VitalsStage, vitals: Vitals = this.snapshot.vitals, error?: string) {
-    this.snapshot = { stage, vitals, error };
+  private emit(
+    stage: VitalsStage,
+    vitals: Vitals = this.snapshot.vitals,
+    next?: Partial<Omit<VitalsSnapshot, "stage" | "vitals">>,
+  ) {
+    this.snapshot = { ...this.snapshot, ...next, stage, vitals };
     this.listeners.forEach((listener) => listener(this.snapshot));
   }
 
@@ -39,16 +43,31 @@ export class PresageVitalsProvider implements VitalsProvider {
     this.emit("initializing");
 
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-      });
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: "user",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 },
+          },
+        });
+      } catch {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
     } catch {
       const message = "Camera permission denied.";
-      this.emit("error", {}, message);
+      this.emit("error", {}, { error: message, retryable: true });
       throw new Error(message);
     }
 
-    this.emit("searching");
+    this.emit("searching", this.snapshot.vitals, {
+      validationHint: "Keep the resident centered, still, and well lit.",
+    });
     await this.beginMeasurement();
   }
 
@@ -59,7 +78,7 @@ export class PresageVitalsProvider implements VitalsProvider {
   private async beginMeasurement(): Promise<never> {
     await this.stop();
     const message = "Presage SDK is not wired up in this build.";
-    this.emit("error", {}, message);
+    this.emit("error", {}, { error: message, retryable: false });
     throw new Error(message);
   }
 

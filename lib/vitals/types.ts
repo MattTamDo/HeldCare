@@ -23,6 +23,11 @@ export const STAGE_LABELS: Record<VitalsStage, string> = {
 export type VitalsSnapshot = {
   stage: VitalsStage;
   vitals: Vitals;
+  processingStatus?: number;
+  validationCode?: number;
+  validationHint?: string;
+  retryable?: boolean;
+  errorCode?: number;
   /** Present only when `stage === "error"`. */
   error?: string;
 };

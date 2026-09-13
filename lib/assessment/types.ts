@@ -26,7 +26,29 @@ export type Vitals = {
   pulse?: number;
   respiration?: number;
   signalQuality?: string;
+  pressureWaveform?: number[];
+  hrv?: {
+    rmssd?: number;
+    meanNn?: number;
+    sdnn?: number;
+    baevsky?: number;
+    stable?: boolean;
+    confidence?: number;
+  };
+  face?: {
+    blinking?: boolean;
+    talking?: boolean;
+    expression?: string;
+    landmarksCount?: number;
+  };
+  packets?: number;
+  scanSeconds?: number;
 };
+
+export type AssessmentResultVitals = Pick<
+  Vitals,
+  "pulse" | "respiration" | "signalQuality"
+>;
 
 /** Regions the procedural mannequin can highlight. */
 export type BodyRegion =
@@ -47,6 +69,7 @@ export type AssessmentState = {
   vitals?: Vitals;
   protocolStep?: string;
   visualKey?: string;
+  guidanceViewed?: boolean;
   /** Derived from `reportedConcern`; drives the 3D highlight. */
   bodyRegion?: BodyRegion;
 };
@@ -57,7 +80,7 @@ export type AssessmentResult = {
   responsive?: boolean;
   reportedConcern?: string;
   visibleConcern?: string;
-  vitals?: Vitals;
+  vitals?: AssessmentResultVitals;
   completedAt: number;
 };
 
@@ -81,12 +104,24 @@ export function buildAssessmentResult(
   incidentId: string,
   state: AssessmentState,
 ): AssessmentResult {
+  const vitals =
+    state.vitals &&
+    (state.vitals.pulse !== undefined ||
+      state.vitals.respiration !== undefined ||
+      state.vitals.signalQuality !== undefined)
+      ? {
+          pulse: state.vitals.pulse,
+          respiration: state.vitals.respiration,
+          signalQuality: state.vitals.signalQuality,
+        }
+      : undefined;
+
   return {
     incidentId,
     responsive: state.responsive,
     reportedConcern: state.reportedConcern,
     visibleConcern: state.visibleConcern,
-    vitals: state.vitals,
+    vitals,
     completedAt: Date.now(),
   };
 }

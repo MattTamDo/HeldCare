@@ -12,11 +12,18 @@ const TIMELINE: Array<{ stage: VitalsStage; after: number }> = [
   { stage: "searching", after: 900 },
   { stage: "acquired", after: 2100 },
   { stage: "measuring", after: 2900 },
-  { stage: "available", after: 5200 },
+  { stage: "available", after: 15_000 },
 ];
 
 function jitter(center: number, spread: number): number {
   return Math.round(center + (Math.random() * 2 - 1) * spread);
+}
+
+function mockPressureWaveform(): number[] {
+  return Array.from({ length: 48 }, (_, index) => {
+    const wave = Math.sin(index / 4.4) * 0.55 + Math.sin(index / 1.9) * 0.16;
+    return Number((wave + (Math.random() * 0.12 - 0.06)).toFixed(3));
+  });
 }
 
 /**
@@ -54,6 +61,23 @@ export class MockVitalsProvider implements VitalsProvider {
                   pulse: jitter(78, 4),
                   respiration: jitter(16, 2),
                   signalQuality: "GOOD",
+                  pressureWaveform: mockPressureWaveform(),
+                  hrv: {
+                    rmssd: jitter(42, 5),
+                    meanNn: jitter(770, 25),
+                    sdnn: jitter(51, 6),
+                    baevsky: jitter(78, 8),
+                    stable: true,
+                    confidence: 0.91,
+                  },
+                  face: {
+                    blinking: false,
+                    talking: false,
+                    expression: "neutral",
+                    landmarksCount: 468,
+                  },
+                  packets: 12,
+                  scanSeconds: 15,
                 }
               : this.snapshot.vitals;
           this.emit({ stage, vitals });

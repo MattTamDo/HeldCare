@@ -57,6 +57,12 @@ export default function AssessmentForm({
             >
               NO
             </Choice>
+            <Choice
+              selected={state.responsive === undefined}
+              onClick={() => onObservation({ responsive: null })}
+            >
+              <span className="text-[11px] leading-tight">NOT RECORDED</span>
+            </Choice>
           </div>
           {state.responsive === undefined ? (
             <p className="mt-2 text-xs text-slate-500">Not recorded.</p>

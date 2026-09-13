@@ -7,12 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smartspectra:smoke": "node scripts/headless-smartspectra-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
+    "@smartspectra/node-sdk": "^3.3.0",
+    "electron": "^44.3.0",
+    "livekit-client": "^2.22.3",
     "next": "^15.1.0",
     "react": "~19.2.0",
     "react-dom": "~19.2.0",
